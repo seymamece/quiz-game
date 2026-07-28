@@ -1,0 +1,101 @@
+// =====================================================================
+//  QUESTION PLAN TEMPLATE
+//  Write your questions here, then in Quiz Game open
+//  "Question Banks" and click  📄 Import from Word / text
+//  Every question lands in its own subject, grade, topic and level.
+//
+//  MARKERS (each on its own line)
+//    Subject:   starts a new subject        (Turkish: Ders:)
+//    Grade:     the grade number            (Turkish: Sinif: / Seviye:)
+//    Topic:     starts a new unit           (Turkish: Konu: / Unite:)
+//    Easy / Medium / Hard                   (Turkish: Kolay / Orta / Zor)
+//
+//  WRITING QUESTIONS
+//    * Leave a BLANK LINE between questions.
+//    * Short ones can go one per line as:   question | answer
+//    * Multiple choice: options on their own lines, then an Answer: line.
+//    * True/False: just make the answer  True  or  False
+//    * The answer is optional. Alternatives are separated by  /
+//    * Any line starting with // is ignored, so notes like this are safe.
+// =====================================================================
+
+
+Subject: Chemistry
+Grade: 9
+
+Topic: Atomic Structure
+
+Easy
+What is the smallest particle of an element? | The atom
+How many protons does a hydrogen atom have? | 1
+
+Which particle has a negative charge?
+A) Proton
+B) Electron
+C) Neutron
+Answer: B) Electron
+
+Medium
+What does the atomic number tell you? | The number of protons
+An isotope has a different number of neutrons. | True
+
+Hard
+Write the electron configuration of oxygen. | 1s2 2s2 2p4
+
+
+Topic: The Periodic Table
+
+Easy
+Who created the first periodic table? | Mendeleev
+How many groups are in the periodic table? | 18
+
+Medium
+What do elements in the same group share? | The same number of valence electrons
+
+Hard
+Why does the atomic radius decrease across a period? | The nuclear charge increases and pulls the electrons closer
+
+
+Topic: Chemical Bonding
+
+Easy
+What holds two atoms together? | A chemical bond
+
+Medium
+Which bond involves sharing electrons?
+A) Ionic
+B) Covalent
+C) Metallic
+Answer: B) Covalent
+
+Hard
+Explain why sodium chloride has a high melting point. | Its strong ionic bonds need a lot of energy to break
+
+
+// ---- a new subject simply starts with another Subject: line ----
+
+Subject: Environmental Science
+Grade: 10
+
+Topic: Acids and Bases
+
+Easy
+What is the pH of pure water? | 7
+
+Medium
+Which ion makes a solution acidic? | The hydrogen ion / H+
+
+Hard
+Calculate the pH of a 0.01 M HCl solution. | 2
+
+
+Topic: Reaction Rates
+
+Easy
+Does raising the temperature speed up a reaction? | Yes
+
+Medium
+Name two factors that affect the rate of a reaction. | Temperature, concentration, surface area, catalyst
+
+Hard
+Explain how a catalyst speeds up a reaction. | It lowers the activation energy and is not used up itself

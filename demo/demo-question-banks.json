@@ -1,0 +1,677 @@
+{
+  "app": "end-of-class-quiz-subjects",
+  "subjects": {
+    "English": {
+      "grades": {
+        "6": {
+          "topics": {
+            "Present Simple & Daily Routines": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "She ____ to school every day.\nA) go\nB) goes\nC) going",
+                    "a": "B) goes"
+                  },
+                  {
+                    "q": "Make it negative: I like coffee.",
+                    "a": "I don't like coffee."
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "Ask a question: He plays football on Sundays. (When?)",
+                    "a": "When does he play football?"
+                  },
+                  {
+                    "q": "Which sentence is correct?\nA) Does she likes pizza?\nB) Does she like pizza?\nC) Do she like pizza?",
+                    "a": "B) Does she like pizza?"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Put in order: usually / my brother / late / gets up / at the weekend",
+                    "a": "My brother usually gets up late at the weekend."
+                  },
+                  {
+                    "q": "Correct the mistake: My father don't work on Fridays.",
+                    "a": "My father doesn't work on Fridays."
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            },
+            "Reading: Story Elements": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "What do we call the person the story is about?",
+                    "a": "The main character (protagonist)"
+                  },
+                  {
+                    "q": "Where and when a story happens is called the ____.",
+                    "a": "Setting"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "What is the 'plot' of a story?",
+                    "a": "The series of events that happen from beginning to end"
+                  },
+                  {
+                    "q": "A story's problem that the character must solve is called the ____.\nA) theme\nB) conflict\nC) setting",
+                    "a": "B) conflict"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "What is the difference between the theme and the plot?",
+                    "a": "Plot = what happens; theme = the message or big idea behind it"
+                  },
+                  {
+                    "q": "Give one example of a 'first person' sentence in a story.",
+                    "a": "Any sentence using I / we, e.g. 'I opened the door slowly.'"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            }
+          }
+        },
+        "7": {
+          "topics": {
+            "Past Tenses & Storytelling": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "Past simple of 'write'?",
+                    "a": "wrote"
+                  },
+                  {
+                    "q": "While I ____ (cook), the phone rang.",
+                    "a": "was cooking"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "Which is correct?\nA) I was watching TV when she called.\nB) I watched TV when she was calling.",
+                    "a": "A) I was watching TV when she called."
+                  },
+                  {
+                    "q": "Turn into past simple: They don't go to the museum.",
+                    "a": "They didn't go to the museum."
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Explain when we use past continuous instead of past simple.",
+                    "a": "For an action in progress in the past, often interrupted by a shorter action"
+                  },
+                  {
+                    "q": "Join with 'while': I read a book. My sister played piano.",
+                    "a": "While my sister was playing the piano, I was reading a book."
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            },
+            "Vocabulary: Word Building": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "Add a prefix to make the opposite: happy",
+                    "a": "unhappy"
+                  },
+                  {
+                    "q": "Noun form of 'decide'?",
+                    "a": "decision"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "What does the prefix 're-' mean? Give an example.",
+                    "a": "Again — e.g. rewrite, rebuild, replay"
+                  },
+                  {
+                    "q": "Adjective form of 'danger'?",
+                    "a": "dangerous"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Make an adverb from 'care', then use it in a sentence.",
+                    "a": "carefully — e.g. 'She drove carefully.'"
+                  },
+                  {
+                    "q": "What is the difference between 'unable' and 'disable'?",
+                    "a": "Unable = not able to do something; disable = to make something stop working"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "Science": {
+      "grades": {
+        "6": {
+          "topics": {
+            "Cells & Living Things": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "What is the basic unit of all living things?",
+                    "a": "The cell"
+                  },
+                  {
+                    "q": "Which part controls what enters and leaves an animal cell?\nA) Nucleus\nB) Cell membrane\nC) Cytoplasm",
+                    "a": "B) Cell membrane"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "Name two parts a plant cell has that an animal cell does not.",
+                    "a": "Cell wall and chloroplasts (also a large vacuole)"
+                  },
+                  {
+                    "q": "What is the job of the nucleus?",
+                    "a": "It controls the cell's activities and holds the genetic information"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Why do plant cells need chloroplasts but animal cells do not?",
+                    "a": "Plants make their own food by photosynthesis; animals get food by eating"
+                  },
+                  {
+                    "q": "Put in order from smallest to largest: organ, cell, tissue, organism",
+                    "a": "Cell → tissue → organ → organism"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            },
+            "Forces & Motion": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "What force pulls objects towards the Earth?",
+                    "a": "Gravity"
+                  },
+                  {
+                    "q": "What unit do we measure force in?",
+                    "a": "Newtons (N)"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "What force slows a book sliding across a table?",
+                    "a": "Friction"
+                  },
+                  {
+                    "q": "A car speeds up. What must be true about the forces on it?",
+                    "a": "The forward force is bigger than the backward forces (unbalanced forces)"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Why does a parachute make a falling person slow down?",
+                    "a": "It increases air resistance, which balances gravity so falling speed drops"
+                  },
+                  {
+                    "q": "Give one example where friction is useful and one where it is a problem.",
+                    "a": "Useful: shoes gripping the ground. Problem: wearing out machine parts"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            }
+          }
+        },
+        "7": {
+          "topics": {
+            "The Human Body Systems": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "Which organ pumps blood around the body?",
+                    "a": "The heart"
+                  },
+                  {
+                    "q": "Where does gas exchange take place in the lungs?\nA) Trachea\nB) Alveoli\nC) Ribs",
+                    "a": "B) Alveoli"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "Name the three main parts of the digestive system in order.",
+                    "a": "Mouth → stomach → small and large intestine"
+                  },
+                  {
+                    "q": "What is the job of red blood cells?",
+                    "a": "They carry oxygen around the body"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Explain why the heart has four chambers instead of two.",
+                    "a": "It keeps oxygen-rich and oxygen-poor blood separate, making circulation more efficient"
+                  },
+                  {
+                    "q": "What happens to your breathing rate during exercise, and why?",
+                    "a": "It increases, because muscles need more oxygen and produce more carbon dioxide"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            },
+            "Matter & Chemical Changes": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "What are the three states of matter?",
+                    "a": "Solid, liquid and gas"
+                  },
+                  {
+                    "q": "What is the chemical symbol for water?",
+                    "a": "H₂O"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "Is melting ice a physical or a chemical change? Why?",
+                    "a": "Physical — no new substance is made and it can be reversed"
+                  },
+                  {
+                    "q": "Which of these is a chemical change?\nA) Cutting paper\nB) Burning paper\nC) Folding paper",
+                    "a": "B) Burning paper"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Give two signs that a chemical reaction has taken place.",
+                    "a": "Any two: colour change, gas bubbles, temperature change, new solid forms"
+                  },
+                  {
+                    "q": "Explain the particle arrangement in a gas compared to a solid.",
+                    "a": "In a gas particles are far apart and move freely; in a solid they are packed closely and only vibrate"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "Math": {
+      "grades": {
+        "6": {
+          "topics": {
+            "Fractions & Decimals": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "Write 1/2 as a decimal.",
+                    "a": "0.5"
+                  },
+                  {
+                    "q": "What is 3/4 + 1/4?",
+                    "a": "1"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "Simplify 8/12.",
+                    "a": "2/3"
+                  },
+                  {
+                    "q": "Which is bigger: 0.7 or 3/5?",
+                    "a": "0.7 (because 3/5 = 0.6)"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Calculate 2/3 of 45.",
+                    "a": "30"
+                  },
+                  {
+                    "q": "Put in order, smallest first: 0.45, 1/2, 0.4, 2/5",
+                    "a": "0.4 = 2/5, then 0.45, then 1/2"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            },
+            "Ratio & Percentages": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "What is 50% of 80?",
+                    "a": "40"
+                  },
+                  {
+                    "q": "Write 25% as a fraction in its simplest form.",
+                    "a": "1/4"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "A recipe uses flour and sugar in the ratio 3:1. If you use 300 g of flour, how much sugar?",
+                    "a": "100 g"
+                  },
+                  {
+                    "q": "What is 15% of 200?",
+                    "a": "30"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "A jacket costs 60 and is reduced by 20%. What is the new price?",
+                    "a": "48"
+                  },
+                  {
+                    "q": "Share 48 sweets between two children in the ratio 5:3.",
+                    "a": "30 and 18"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            }
+          }
+        },
+        "7": {
+          "topics": {
+            "Integers & Algebra Basics": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "What is (-5) + 8?",
+                    "a": "3"
+                  },
+                  {
+                    "q": "Simplify: 3a + 4a",
+                    "a": "7a"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "Solve: x + 7 = 12",
+                    "a": "x = 5"
+                  },
+                  {
+                    "q": "What is (-4) × (-6)?",
+                    "a": "24"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Solve: 3x - 5 = 16",
+                    "a": "x = 7"
+                  },
+                  {
+                    "q": "Simplify: 2(x + 3) + 4x",
+                    "a": "6x + 6"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            },
+            "Geometry: Angles & Area": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "How many degrees are there in a straight line?",
+                    "a": "180°"
+                  },
+                  {
+                    "q": "Area of a rectangle 6 cm by 4 cm?",
+                    "a": "24 cm²"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "The angles in a triangle are 60° and 70°. What is the third angle?",
+                    "a": "50°"
+                  },
+                  {
+                    "q": "Area of a triangle with base 10 cm and height 6 cm?",
+                    "a": "30 cm²"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "What is the sum of the interior angles of a quadrilateral?",
+                    "a": "360°"
+                  },
+                  {
+                    "q": "A square has an area of 49 cm². What is its perimeter?",
+                    "a": "28 cm"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "Computing": {
+      "grades": {
+        "6": {
+          "topics": {
+            "Computer Hardware & Software": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "Which of these is an input device?\nA) Monitor\nB) Keyboard\nC) Printer",
+                    "a": "B) Keyboard"
+                  },
+                  {
+                    "q": "What does CPU stand for?",
+                    "a": "Central Processing Unit"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "What is the difference between hardware and software?",
+                    "a": "Hardware is the physical parts you can touch; software is the programs that run on it"
+                  },
+                  {
+                    "q": "Which memory is lost when you switch the computer off?\nA) RAM\nB) Hard disk\nC) USB stick",
+                    "a": "A) RAM"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Why is a hard disk called 'storage' but RAM is called 'memory'?",
+                    "a": "Storage keeps data permanently even without power; RAM holds data only while the computer is running"
+                  },
+                  {
+                    "q": "Name one input device, one output device and one storage device.",
+                    "a": "e.g. mouse (input), speaker (output), USB stick (storage)"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            },
+            "Internet & Online Safety": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "What does WWW stand for?",
+                    "a": "World Wide Web"
+                  },
+                  {
+                    "q": "Should you share your password with a friend?",
+                    "a": "No — passwords must stay private"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "Give two features of a strong password.",
+                    "a": "Any two: long, mixes letters/numbers/symbols, not a real word, not personal info"
+                  },
+                  {
+                    "q": "What should you do if a stranger messages you online asking to meet?",
+                    "a": "Do not reply or agree — tell a trusted adult straight away"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "What is phishing and how can you spot it?",
+                    "a": "A fake message pretending to be someone you trust to steal your details; look for odd addresses, urgency and strange links"
+                  },
+                  {
+                    "q": "Why is it dangerous to post your school photo with your location?",
+                    "a": "It lets strangers work out where you are and when, which puts your safety at risk"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            }
+          }
+        },
+        "7": {
+          "topics": {
+            "Networks & Data": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "Which device connects two networks together?\nA) Monitor\nB) Router\nC) Scanner",
+                    "a": "B) Router"
+                  },
+                  {
+                    "q": "What does LAN stand for?",
+                    "a": "Local Area Network"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "What is the difference between a LAN and a WAN?",
+                    "a": "A LAN covers a small area like one school; a WAN covers a large area, like the internet"
+                  },
+                  {
+                    "q": "How many bits are there in one byte?",
+                    "a": "8"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "Convert the binary number 1011 to decimal.",
+                    "a": "11"
+                  },
+                  {
+                    "q": "Why is data sent across the internet split into packets?",
+                    "a": "Packets can travel by different routes, use the network efficiently, and lost ones can be resent"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            },
+            "Algorithms & Programming Basics": {
+              "questions": {
+                "easy": [
+                  {
+                    "q": "What is an algorithm?",
+                    "a": "A step-by-step set of instructions to solve a problem"
+                  },
+                  {
+                    "q": "Which one repeats instructions?\nA) A loop\nB) A variable\nC) A comment",
+                    "a": "A) A loop"
+                  }
+                ],
+                "medium": [
+                  {
+                    "q": "What is a variable used for in a program?",
+                    "a": "To store a value that can change while the program runs"
+                  },
+                  {
+                    "q": "What will this print?\nx = 5\nx = x + 3\nprint(x)",
+                    "a": "8"
+                  }
+                ],
+                "hard": [
+                  {
+                    "q": "What is the difference between a 'for' loop and a 'while' loop?",
+                    "a": "A for loop repeats a known number of times; a while loop repeats as long as a condition is true"
+                  },
+                  {
+                    "q": "Write an algorithm in words to find the largest of three numbers.",
+                    "a": "Compare the first two, keep the bigger one, then compare that with the third and keep the bigger one"
+                  }
+                ]
+              },
+              "usedQ": {
+                "easy": [],
+                "medium": [],
+                "hard": []
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
