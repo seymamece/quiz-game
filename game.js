@@ -337,7 +337,12 @@ function showToast(msg,actionLabel,actionFn,ms=4500){
       'display:flex;align-items:center;gap:14px;font-family:Nunito;font-weight:700;font-size:.95rem;max-width:92vw';
     document.body.appendChild(t);
   }
-  t.innerHTML=`<span>${msg}</span>`;
+  /* Text, never HTML. Toast messages quote class, subject, topic and question
+     names, and a question bank imported from a colleague is untrusted input. */
+  t.textContent='';
+  const span=document.createElement('span');
+  span.textContent=msg;
+  t.appendChild(span);
   if(actionLabel){
     const b=document.createElement('button');
     b.textContent=actionLabel;
