@@ -249,6 +249,13 @@ const sndPick=()=>{ if(MY_SOUNDS.spin) return; tone(600+Math.random()*300,0,.05,
 
 /* ================== SMALL HELPERS ================== */
 function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; }
+/* Fisher-Yates. Array.sort with a random comparator looks like a shuffle but
+   is not uniform — some students would land on the same team far too often. */
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
 function mkIco(txt,title,fn){
   const b=document.createElement('button'); b.className='icoBtn'; b.textContent=txt; b.title=title;
   b.onclick=ev=>{ ev.stopPropagation(); fn(); };
@@ -1717,7 +1724,7 @@ function showIdleGroup(){
 }
 function makeTeams(present){
   const c=cls();
-  const shuffled=[...present].sort(()=>Math.random()-0.5);
+  const shuffled=shuffle(present);
   const teams=Array.from({length:S.quiz.groups},()=>[]);
   shuffled.forEach((id,i)=>teams[i%S.quiz.groups].push(id));
   c.groupState={ teams, scores:teams.map(()=>0), turn:0, memberIdx:teams.map(()=>0) };
