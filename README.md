@@ -34,7 +34,7 @@ A classroom quiz game for **Galaxy International School Uganda**. No installatio
 4. **Question Banks tab** → add subjects and topics, then questions (try *📄 Import from Word / text* with the template in `tools/`).
 5. **Quiz tab** → pick a mode and play. 🎉
 
-> Keep the four files together — `index.html` loads `style.css` and `game.js` from the same folder. Copying `index.html` on its own gives you an unstyled page that does nothing.
+> Keep the folder together — `index.html` loads `style.css`, `game.js`, `assets/` and `vendor/` from beside itself. Copying `index.html` on its own gives you an unstyled page that does nothing.
 
 Demo content to try it immediately: import [`demo/demo-question-banks.json`](demo/demo-question-banks.json) from the Question Banks tab (96 questions, 4 subjects, Grades 6–7).
 
@@ -45,11 +45,15 @@ index.html      page structure — all the markup, links the other two files
 style.css       all styling
 game.js         all behaviour: data model, quiz logic, reports, sounds
 assets/         gisu-logo.png — the school logo shown in the header
+vendor/         the bundled confetti library (third-party, ISC licensed)
 demo/           a ready-made question bank to try the app
-tools/          optional Python helpers for custom sounds + a plan template
+tools/          selftest.js, plus optional Python helpers for sounds and a plan template
 ```
 
-Only two things come from the internet, both in the `<head>` of `index.html`: the **Nunito + Caveat** fonts and the **canvas-confetti** library. Offline, the app still works — you get system fonts and no confetti.
+Keep these together when you copy the app around — `index.html` loads `style.css`,
+`game.js`, `assets/` and `vendor/` from beside itself.
+
+Only one thing comes from the internet: the **Nunito + Caveat** fonts, in the `<head>` of `index.html`. Offline you simply get system fonts; everything else, confetti included, works with no connection. The confetti library is bundled in [`vendor/`](vendor/) rather than loaded from a CDN, so no third party can ever swap out code that runs alongside your class lists — see [`vendor/README.md`](vendor/README.md).
 
 ## The school logo
 
@@ -84,7 +88,7 @@ Python is **only** needed for these optional tools — the game itself needs not
 
 ## Contributing
 
-Issues and pull requests are welcome. Three plain files, no framework and no build step — open them, read them, change them, refresh the browser. Please keep it that way: no bundler, no dependencies to install.
+Issues and pull requests are welcome. Three plain files of our own code, no framework and no build step — open them, read them, change them, refresh the browser. Please keep it that way: no bundler, no dependencies to install. Before opening a PR, run `node tools/selftest.js`.
 
 ## License
 

@@ -129,6 +129,34 @@ test('showToast sets its message as text, not HTML', () => {
   return /textContent/.test(fn) || 'showToast no longer sets textContent';
 });
 
+/* ---------- the confetti bundle ----------
+   fireConfetti() bails out quietly when the global is missing, so a wrong
+   script tag costs the celebration and says nothing. It went unnoticed once
+   already: the page pointed at a cdnjs URL that had always 404'd. */
+
+const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+test('index.html loads confetti from vendor/, not a CDN', () => {
+  const tags = [...indexHtml.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);
+  const remote = tags.filter(s => /^https?:|^\/\//.test(s));
+  if (remote.length) return 'script loaded over the network: ' + remote.join(', ');
+  return tags.some(s => /^vendor\/confetti/.test(s)) || 'no vendor/confetti script tag: ' + tags.join(', ');
+});
+
+test('the vendored confetti is the browser build', () => {
+  const src2 = [...indexHtml.matchAll(/<script[^>]*src="(vendor\/[^"]+)"/g)].map(m => m[1])[0];
+  if (!src2) return 'no vendored script to check';
+  const file = path.join(__dirname, '..', src2);
+  if (!fs.existsSync(file)) return src2 + ' is referenced but missing';
+  const lib = fs.readFileSync(file, 'utf8');
+  // The CommonJS builds pass a bare `module` and never touch window.
+  if (!/window\.confetti\s*=/.test(lib)) {
+    return src2 + ' never assigns window.confetti — this looks like the CommonJS build, ' +
+      'which throws "module is not defined" in a script tag. Use dist/confetti.browser.js.';
+  }
+  return true;
+});
+
 /* ---------- report ---------- */
 
 const failed = results.filter(r => !r.ok);

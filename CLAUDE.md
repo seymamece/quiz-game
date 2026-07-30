@@ -13,7 +13,7 @@ See [README.md](README.md) for the project overview, feature rules, and game log
 
 ## Architecture
 
-Three plain files, no build step, no package manager, no dependencies to install:
+Three plain files of our own code, no build step, no package manager, nothing to install:
 
 | File | Contents |
 |---|---|
@@ -22,10 +22,14 @@ Three plain files, no build step, no package manager, no dependencies to install
 | `game.js` | All behaviour: data model, quiz flow, reports, sounds. |
 
 `index.html` must be opened directly (`file://` works) or served from a folder that also
-contains `style.css`, `game.js`, and `assets/`. Keep it that way — no bundler.
+contains `style.css`, `game.js`, `assets/` and `vendor/`. Keep it that way — no bundler.
+`vendor/` is bundled third-party code; don't edit it, and see `vendor/README.md` to update it.
 
-Only two external resources, both in `<head>`: Google Fonts (Nunito + Caveat) and
-canvas-confetti. Offline the app still runs, just with system fonts and no confetti.
+One external resource, in `<head>`: Google Fonts (Nunito + Caveat). Offline the app still
+runs, just with system fonts. canvas-confetti is bundled in `vendor/` on purpose — it runs
+on the same page as the student data, so it must not be a CDN's to replace. Keep it that
+way, and use the `dist/confetti.browser.js` build; the CommonJS builds throw in a script
+tag and `fireConfetti()` swallows the failure silently.
 
 ### game.js section map
 
