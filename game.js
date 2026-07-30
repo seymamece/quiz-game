@@ -1748,6 +1748,7 @@ function pickGroupAnswerer(){
 }
 function finishGroup(correct){
   const c=cls(), g=c.groupState;
+  logAttempt(correct);        // group answers belong in the reports too, per answerer
   if(correct){
     g.scores[g.turn]+=LVL[current.level].pts;
     sndCorrect(); fireConfetti();
