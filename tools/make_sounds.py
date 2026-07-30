@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Builds the quiz sounds from scratch (no downloads, no copyright worries)
-and writes them straight into quiz-game.html as base64.
+and writes them straight into game.js as base64.
 
   spin    – a cheerful little carnival tune while the names are spinning
   tick    – a mechanical clock tick for the last seconds
@@ -12,6 +12,7 @@ Run:  python make_sounds.py
 """
 
 import base64
+import os
 import re
 
 import lameenc
@@ -188,8 +189,9 @@ SOUNDS = {
     "wrong": (make_wrong, 80),
 }
 
-html_path = "/mnt/user-data/outputs/quiz-game.html"
-html = open(html_path, encoding="utf-8").read()
+# MY_SOUNDS lives in game.js, next to this tools/ folder.
+js_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game.js")
+js = open(js_path, encoding="utf-8").read()
 
 total = 0
 for name, (fn, br) in SOUNDS.items():
@@ -201,9 +203,9 @@ for name, (fn, br) in SOUNDS.items():
     # replace  name: "...."  inside the MY_SOUNDS block
     pattern = re.compile(rf'(\n  {name}:\s*)"[^"]*"')
     new_line = rf'\g<1>"data:audio/mpeg;base64,{b64}"'
-    html, count = pattern.subn(new_line, html, count=1)
+    js, count = pattern.subn(new_line, js, count=1)
     if count != 1:
         raise SystemExit(f"Could not find the '{name}' line in MY_SOUNDS")
 
-open(html_path, "w", encoding="utf-8").write(html)
-print(f"\ntotal audio: {total/1024:.0f} KB   ·   html now {len(html)/1024:.0f} KB")
+open(js_path, "w", encoding="utf-8").write(js)
+print(f"\ntotal audio: {total/1024:.0f} KB   ·   game.js now {len(js)/1024:.0f} KB")

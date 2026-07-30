@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Turns an audio file into the one line you paste into quiz-game.html.
+Turns an audio file into the one line you paste into game.js.
 
 Usage:
     python make_sound_line.py yay.mp3 correct
@@ -11,11 +11,11 @@ The second argument is which sound it replaces:
 
 It prints a line like:
     correct: "data:audio/mpeg;base64,SUQzBAAA....",
-Copy that line into the MY_SOUNDS block near the top of quiz-game.html,
+Copy that line into the MY_SOUNDS block near the top of game.js,
 replacing the existing line for that sound.
 
 Tip: keep clips under ~2 seconds. Every 100 KB of audio adds roughly
-135 KB to the html file, because base64 text is bigger than the raw file.
+135 KB to game.js, because base64 text is bigger than the raw file.
 """
 
 import base64
@@ -60,11 +60,11 @@ def main() -> int:
     size_kb = len(raw) / 1024
     added_kb = len(encoded) / 1024
     print(f"\n{os.path.basename(path)} — {size_kb:.0f} KB "
-          f"(adds about {added_kb:.0f} KB to the html file)")
+          f"(adds about {added_kb:.0f} KB to game.js)")
     if added_kb > 500:
-        print("That is quite large. A shorter clip would keep the html file quick to open.")
+        print("That is quite large. A shorter clip would keep game.js quick to load.")
 
-    print("\nPaste this line into the MY_SOUNDS block in quiz-game.html:\n")
+    print("\nPaste this line into the MY_SOUNDS block in game.js:\n")
     print(f'  {key}: "data:{mime};base64,{encoded}",')
     return 0
 

@@ -1,6 +1,6 @@
-# 🎲 Quiz Game — End-of-Class Quiz for Teachers
+# 🎲 GISU Quiz Game — End-of-Class Quiz for Teachers
 
-A classroom quiz game that runs from **a single HTML file**. No installation, no server, no account — download it, double-click it, play. Built for teachers who want to close their lessons with five fun minutes of review.
+A classroom quiz game for **Galaxy International School Uganda**. No installation, no server, no account, no build step — download the folder, double-click `index.html`, play. Built for teachers who want to close their lessons with five fun minutes of review.
 
 ## Features
 
@@ -24,34 +24,54 @@ A classroom quiz game that runs from **a single HTML file**. No installation, no
 
 **Data safety** — deleted items go to a Trash with 30-day restore, Ctrl+Z undoes the last delete, and the app reminds you when a backup is overdue. Everything can be exported to a single backup file and imported on another computer.
 
-**Sounds** — a carnival tune while names spin, a tick-tock countdown, applause + fanfare for correct, a donk-zonk buzzer for wrong. All synthesized from scratch (no copyright worries) and embedded in the file. Want your own sounds? See [`tools/`](tools/).
+**Sounds** — a carnival tune while names spin, a tick-tock countdown, applause + fanfare for correct, a donk-zonk buzzer for wrong. All synthesized from scratch (no copyright worries) and embedded in `game.js`. Want your own sounds? See [`tools/`](tools/).
 
 ## Getting started
 
-1. Download **`quiz-game.html`** (or use the hosted page if this repo has GitHub Pages enabled).
-2. Open it in any modern browser.
+1. Download the whole folder (green **Code → Download ZIP** button, then unzip) — or use the hosted page if this repo has GitHub Pages enabled.
+2. Open **`index.html`** in any modern browser.
 3. **Classes tab** → add your classes (`7-A, 7-B, 8-A`) and students.
 4. **Question Banks tab** → add subjects and topics, then questions (try *📄 Import from Word / text* with the template in `tools/`).
 5. **Quiz tab** → pick a mode and play. 🎉
 
+> Keep the four files together — `index.html` loads `style.css` and `game.js` from the same folder. Copying `index.html` on its own gives you an unstyled page that does nothing.
+
 Demo content to try it immediately: import [`demo/demo-question-banks.json`](demo/demo-question-banks.json) from the Question Banks tab (96 questions, 4 subjects, Grades 6–7).
+
+## Project layout
+
+```
+index.html      page structure — all the markup, links the other two files
+style.css       all styling
+game.js         all behaviour: data model, quiz logic, reports, sounds
+assets/         gisu-logo.png — the school logo shown in the header
+demo/           a ready-made question bank to try the app
+tools/          optional Python helpers for custom sounds + a plan template
+```
+
+Only two things come from the internet, both in the `<head>` of `index.html`: the **Nunito + Caveat** fonts and the **canvas-confetti** library. Offline, the app still works — you get system fonts and no confetti.
+
+## The school logo
+
+The header shows `assets/gisu-logo.png` to the left of the title — the GISU **emblem** on its own, without the wordmark or tagline, since at 60px the wordmark was too small to read and the title already names the school. If that file is missing the logo is simply hidden and the title stands alone — no broken-image icon. See [`assets/README.md`](assets/README.md) for the recommended size and how to use an SVG instead.
 
 ## Where is my data?
 
 All data (classes, students, questions, scores, history) lives in **your browser's storage on your computer** — nothing is sent anywhere. That means:
 
-- The HTML file itself does not contain your data; sharing the file never leaks student names.
+- The files themselves do not contain your data; sharing them never leaks student names.
 - To move between computers (home ↔ school), use **Backup → Export All Data** and import the file on the other machine.
 - If the browser's site data is cleared, the data is gone — the app reminds you to keep backups. Please do.
+- Data is stored per-origin, so opening the app from a different folder or a different browser shows an empty app. Use a backup file to carry data across.
 
-⚠️ **Never commit backup files** (`quiz-backup-*.json`) to a public repository — they contain student names. The included `.gitignore` guards against this.
+⚠️ **Never commit backup files** (`quiz-backup-*.json`) to a public repository — they contain student names. The included [`.gitignore`](.gitignore) guards against this.
 
 ## Customizing sounds
 
-Everything lives in the `MY_SOUNDS` block near the top of the file's script. Point any sound at your own audio, either as an embedded base64 string (survives sharing the file) or a filename next to the HTML. Helper scripts:
+Everything lives in the `MY_SOUNDS` block near the top of [`game.js`](game.js) (around line 211). Point any sound at your own audio, either as an embedded base64 string (survives sharing the file) or a filename next to `index.html`. Helper scripts:
 
-- `tools/make_sound_line.py your.mp3 correct` → prints the line to paste.
-- `tools/make_sounds.py` → regenerates the built-in synthesized sounds (Python, `numpy` + `lameenc`).
+- `tools/make_sound_line.py your.mp3 correct` → prints the line to paste into `game.js`.
+- `tools/make_sounds.py` → regenerates the built-in synthesized sounds and writes them into `game.js` (Python, `numpy` + `lameenc`).
 
 Python is **only** needed for these optional tools — the game itself needs nothing but a browser.
 
@@ -64,7 +84,7 @@ Python is **only** needed for these optional tools — the game itself needs not
 
 ## Contributing
 
-Issues and pull requests are welcome. The whole app is one HTML file — open it, read it, change it. Keep the single-file philosophy: no build step, no dependencies.
+Issues and pull requests are welcome. Three plain files, no framework and no build step — open them, read them, change them, refresh the browser. Please keep it that way: no bundler, no dependencies to install.
 
 ## License
 

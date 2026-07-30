@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GISU Quiz Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="frame">
+  <header>
+    <div class="brand">
+      <img id="brandLogo" class="logo" src="assets/gisu-logo.png"
+           alt="Galaxy International School Uganda">
+      <h1>GISU Quiz Game <span>class · subject · topic</span></h1>
+    </div>
+    <div class="hdrBtns">
+      <button class="iconTop" id="fsBtn" title="Fullscreen">⛶</button>
+      <button class="iconTop" id="soundBtn" title="Sound on/off">🔊</button>
+    </div>
+  </header>
+
+  <nav>
+    <button data-tab="quiz" class="active">🎲 Quiz</button>
+    <button data-tab="classes">🏫 Classes</button>
+    <button data-tab="questions">📖 Question Banks</button>
+    <button data-tab="board">🏆 Scores</button>
+    <button data-tab="reports">📊 Reports</button>
+    <button data-tab="backup">💾 Backup</button>
+  </nav>
+
+  <!-- ================= QUIZ ================= -->
+  <section id="tab-quiz" class="show">
+    <div class="card">
+      <div class="ctxBar">
+        <div class="grp">
+          <label>🏫 Class</label>
+          <select id="selClass"></select>
+        </div>
+        <div class="grp">
+          <label>📖 Subject</label>
+          <select id="selSubject"></select>
+        </div>
+        <div class="grp">
+          <label id="topicLabel">📌 Topic</label>
+          <select id="selTopic"></select>
+        </div>
+      </div>
+      <div style="margin-top:10px;border-top:2px dashed var(--line);padding-top:10px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="miniLabel" style="margin:0">⚙️ Mode</span>
+          <div class="segmented" id="modeSeg">
+            <button data-m="individual" class="on">🎲 Individual</button>
+            <button data-m="group">👥 Groups</button>
+            <button data-m="beat">⏱️ Beat the Clock</button>
+          </div>
+          <button class="btn ghost small" id="quizOptsBtn" style="margin-left:auto">Options ▾</button>
+        </div>
+        <div id="quizOpts" style="display:none;margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="card" id="stageCard">
+      <div class="quizBanner" id="quizBanner"></div>
+      <div class="stage" id="stage"></div>
+    </div>
+    <div class="row" style="justify-content:center">
+      <button class="btn ghost small" id="newRound">🔄 New Round (reset picked students)</button>
+    </div>
+  </section>
+
+  <!-- ================= CLASSES ================= -->
+  <section id="tab-classes">
+    <div class="card">
+      <h2>My Classes</h2>
+      <p class="hint">Just type the class name with its number — e.g. <b>7-A</b> — and the grade is detected automatically (7-A → Grade 7). The grade decides which topics the class sees in the quiz. Use 🎓 only if you ever need to correct it, ✏️ to rename, 🗑 to delete.</p>
+      <div class="row">
+        <input type="text" id="clsInput" placeholder="e.g. 7-A   (or several: 7-A, 7-B, 8-A)">
+        <button class="btn" id="clsAdd">+ Add Class</button>
+        <button class="btn ghost" id="clsBulk">📝 Bulk Add</button>
+      </div>
+      <div id="clsList"></div>
+    </div>
+    <div class="card" id="stuCard" style="display:none">
+      <h2 id="stuTitle">Students</h2>
+      <p class="hint">Add the students who are in class today. You can paste several names separated by commas. Crossed-out names have already been picked this round. ✏️ edits a name (points are kept), × removes.</p>
+      <p class="hint" id="attnLine" style="color:var(--blue-deep)"></p>
+      <div class="row">
+        <input type="text" id="stuInput" placeholder="e.g. Emma  or  Emma, Liam, Sofia">
+        <button class="btn" id="stuAdd">Add</button>
+      </div>
+      <div class="chips" id="stuList"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost small" id="stuClear">Clear student list</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= QUESTION BANKS ================= -->
+  <section id="tab-questions">
+    <div class="card">
+      <h2>Yearly Preparation</h2>
+      <p class="hint">Pick a <b>grade</b> (it comes automatically from your classes — nothing to type, nothing to mismatch) and a <b>subject</b>, then add the topics from your yearly plan and their questions below. Do it once at the start of the year, use it all year. 🎯</p>
+      <p class="hint">📝 <b>Bulk Add</b> = paste new questions from Word, Excel, anywhere. &nbsp;⬇ <b>Export</b> = save question banks as a file, to share with another teacher or carry to another computer. &nbsp;⬆ <b>Import</b> = load a file someone exported — it merges, so your own questions are never deleted.</p>
+      <div class="row">
+        <div style="flex:1;min-width:150px">
+          <label class="miniLabel">🎓 Grade</label>
+          <select id="edGradeSel" style="width:100%"></select>
+        </div>
+        <div style="flex:2;min-width:190px">
+          <label class="miniLabel">📖 Subject</label>
+          <select id="edSubSel" style="width:100%"></select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn blue small" id="subNew">+ New Subject</button>
+        <button class="btn ghost small" id="subRen">✏️ Rename</button>
+        <button class="btn ghost small" id="subCopyGrade">📋 Copy topics to another grade</button>
+        <button class="btn ghost small" id="subExp">⬇ Export this subject</button>
+        <button class="btn ghost small" id="subExpAll">⬇⬇ Export ALL subjects</button>
+        <button class="btn ghost small" id="subImp">⬆ Import file</button>
+        <button class="btn blue small" id="subImpText">📄 Import from Word / text</button>
+        <button class="btn ghost small" id="subDel">🗑 Delete subject</button>
+        <input type="file" id="subFile" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <div class="card" id="topCard" style="display:none">
+      <h2 id="topTitle">Topics / Units</h2>
+      <p class="hint">Add one topic per unit in your yearly plan for this grade. Click a topic to open its question bank.</p>
+      <div class="row">
+        <input type="text" id="topInput" placeholder="e.g. Unit 3: Networks  (or several, separated by commas)">
+        <button class="btn" id="topAdd">+ Add Topic</button>
+        <button class="btn ghost" id="topBulk">📝 Bulk Add</button>
+      </div>
+      <div id="topList"></div>
+    </div>
+
+    <div class="card" id="qCard" style="display:none">
+      <h2 id="qTitle">Question Bank</h2>
+      <div class="lvlTabs" id="qTabs">
+        <button data-l="easy" class="active">🟦 Easy (10p)</button>
+        <button data-l="medium">🟨 Medium (20p)</button>
+        <button data-l="hard">🟥 Hard (30p)</button>
+      </div>
+      <div class="row">
+        <input type="text" id="qText" placeholder="Type a question…">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="qAns" placeholder="Answer (optional, only the teacher sees it)">
+        <button class="btn" id="qAdd">Add Question</button>
+        <button class="btn ghost" id="qBulk">📝 Bulk Add</button>
+        <button class="btn ghost" id="qCancel" style="display:none">Cancel</button>
+      </div>
+      <div id="qList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Timer Settings</h2>
+      <div class="setRow"><label>🟦 Easy time (seconds)</label><input type="number" id="tEasy" min="5" max="300"></div>
+      <div class="setRow"><label>🟨 Medium time (seconds)</label><input type="number" id="tMedium" min="5" max="300"></div>
+      <div class="setRow"><label>🟥 Hard time (seconds)</label><input type="number" id="tHard" min="5" max="300"></div>
+    </div>
+  </section>
+
+  <!-- ================= SCOREBOARD ================= -->
+  <section id="tab-board">
+    <div class="card">
+      <h2 id="boardTitle">Scoreboard</h2>
+      <table id="scoreTable"></table>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost small" id="scoreReset">Reset this class's scores</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= REPORTS ================= -->
+  <section id="tab-reports">
+    <div class="card">
+      <h2>Reports</h2>
+      <p class="hint">Every answer given during a quiz is recorded here, so you can see how a class is doing per topic, who needs help, and which questions trip most students up. Absent students are naturally left out of the days they missed.</p>
+      <div class="row">
+        <div style="flex:1;min-width:150px">
+          <label class="miniLabel">🏫 Class</label>
+          <select id="rpClass" style="width:100%"></select>
+        </div>
+        <div style="flex:1;min-width:150px">
+          <label class="miniLabel">📅 Period</label>
+          <select id="rpPeriod" style="width:100%">
+            <option value="0">All time</option>
+            <option value="1">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+        </div>
+      </div>
+      <div id="rpSummary" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card" id="rpTopicCard" style="display:none">
+      <h2>By topic</h2>
+      <p class="hint">Success rate per topic. Red rows are the ones to revisit.</p>
+      <div id="rpTopics"></div>
+    </div>
+
+    <div class="card" id="rpStudentCard" style="display:none">
+      <h2>By student</h2>
+      <p class="hint">How each present student is doing overall in the chosen period.</p>
+      <table id="rpStudents"></table>
+    </div>
+
+    <div class="card" id="rpHardCard" style="display:none">
+      <h2>Hardest questions</h2>
+      <p class="hint">Questions most students got wrong — worth re-teaching, or maybe re-wording.</p>
+      <div id="rpHard"></div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button class="btn ghost small" id="rpExport">⬇ Export report (CSV for Excel)</button>
+        <button class="btn ghost small" id="rpClear">Clear answer history</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BACKUP ================= -->
+  <section id="tab-backup">
+    <div class="card" id="bakStatusCard" style="display:none"></div>
+    <div class="card">
+      <h2>Backup & Move Between Computers</h2>
+      <p class="hint">Your data (classes, students, subjects, topics, questions, scores) is saved in <b>this computer's browser</b> — it does not travel inside the HTML file. To use the quiz on another computer (e.g. home → school):</p>
+      <p class="hint"><b>1.</b> Click <b>Export All Data</b> below — a backup file will download.<br>
+      <b>2.</b> Put that file in your Google Drive (or a USB stick).<br>
+      <b>3.</b> On the other computer, open the quiz and click <b>Import All Data</b> to load the backup. Everything comes back exactly as it was. ✔</p>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="bakExport">⬇ Export All Data</button>
+        <button class="btn blue" id="bakImport">⬆ Import All Data</button>
+        <input type="file" id="bakFile" accept=".json" style="display:none">
+      </div>
+      <p class="hint" style="margin-top:14px">💡 Tip: export a fresh backup at the end of each day so your Drive copy always has the latest scores.</p>
+      <p class="hint" style="margin-top:14px;border-top:2px dashed var(--line);padding-top:14px"><b>Which export do I need?</b><br>
+      • <b>This one (Export All Data)</b> — everything: classes, student names, questions and scores. For moving your own setup between computers.<br>
+      • <b>Question Banks → Export</b> — questions only, no student names or scores. For sharing your work with other teachers.</p>
+    </div>
+
+    <div class="card">
+      <h2>🗑 Trash</h2>
+      <p class="hint">Anything you delete lands here and can be restored for 30 days. (Right after deleting, you can also just press <b>Undo</b> in the popup, or <b>Ctrl+Z</b>.)</p>
+      <div id="trashList"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost small" id="trashEmpty">Empty trash</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="modalBack" id="modalBack">
+  <div class="modal">
+    <h3 id="mTitle">…</h3>
+    <p id="mMsg" style="display:none"></p>
+    <input type="text" id="mInput" style="display:none">
+    <textarea id="mArea" style="display:none"></textarea>
+    <div class="row">
+      <button class="btn ghost" id="mCancel">Cancel</button>
+      <button class="btn" id="mOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Backups contain student names — never commit them.
+quiz-backup-*.json
+quiz-backup-*.zip
+
+# Exported reports may contain student names too.
+quiz-report-*.csv
+*-report-*.csv
+
+# OS / editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# Python bytecode from the optional tools/ scripts
+__pycache__/
+*.pyc
