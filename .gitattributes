@@ -1,0 +1,7 @@
+# Vendored third-party code must stay byte-for-byte what upstream published,
+# otherwise the sha512 recorded in vendor/README.md cannot be verified after a
+# clone. Never convert line endings here.
+vendor/** -text
+
+# The logo is binary; make sure nothing tries to diff or convert it.
+*.png binary
