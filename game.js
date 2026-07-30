@@ -1791,7 +1791,7 @@ function showIdleBeat(){
   };
 }
 function startBeatRun(){
-  current.beat={ correct:0, total:0, timeLeft:S.quiz.beatSeconds, done:false };
+  current.beat={ correct:0, total:0, timeLeft:S.quiz.beatSeconds, done:false, seen:[] };
   current.paused=false;
   beatNextQuestion();
   clearInterval(current.beatTimer);
@@ -1810,7 +1810,13 @@ function beatNextQuestion(){
   const bag=[];
   LEVELS.forEach(l=>t.questions[l].forEach(q=>bag.push({l,q})));
   if(!bag.length){ endBeatRun(); return; }
-  const pick=bag[Math.floor(Math.random()*bag.length)];
+  /* Don't ask the same question twice in one run. Tracked per run rather than
+     in topic.usedQ, so a sprint never eats the pool the other modes draw from. */
+  if(!current.beat.seen) current.beat.seen=[];
+  let avail=bag.filter(x=>!current.beat.seen.includes(x.q.id));
+  if(!avail.length){ current.beat.seen=[]; avail=bag; }   // whole topic answered, start over
+  const pick=avail[Math.floor(Math.random()*avail.length)];
+  current.beat.seen.push(pick.q.id);
   current.level=pick.l; current.question=pick.q;
   stage.innerHTML=`
     <div class="stageLabel">⏱️ <span id="beatTime">${current.beat.timeLeft}</span>s left · <b style="color:var(--green-deep)">${current.beat.correct} correct</b></div>
