@@ -1604,7 +1604,12 @@ function typedMatches(typed,answer){
   return String(answer).split(/\s*(?:\/|,| or )\s*/i).map(normAns).filter(Boolean).some(alt=>{
     const az=alt.replace(/\s/g,'');
     if(t===alt||tz===az) return true;
-    return alt.length>3&&(t.includes(alt)||alt.includes(t)||tz.includes(az)||az.includes(tz));
+    if(az.length<=3) return false;                     // too short to judge on a fragment
+    if(t.includes(alt)||tz.includes(az)) return true;  // they wrote a sentence around the answer
+    // They wrote only part of the answer. Require most of it, otherwise a
+    // single letter would score "Alveoli" and "up" would score "Jupiter".
+    const need=Math.max(4,Math.ceil(az.length*0.7));
+    return tz.length>=need&&az.includes(tz);
   });
 }
 function renderAnswerArea(){
