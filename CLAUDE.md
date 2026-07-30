@@ -56,6 +56,10 @@ rather than trusting them.
   The storage key is `quiz-state-v6`; changing it silently orphans every teacher's data.
 - The header logo (`assets/gisu-logo.png`) is optional — `game.js` hides the `img` when
   the file is missing. Don't make it required.
+- **Treat imported question banks as untrusted input.** Subject, topic and question names
+  arrive through Import JSON from other teachers. Anything of theirs that reaches the page
+  goes through `esc()` or `textContent` — never straight into `innerHTML`. This is not
+  hypothetical: a topic named `<img src=x onerror=...>` used to run script when deleted.
 
 ## Data and privacy
 
@@ -68,8 +72,16 @@ contents into commits, issues, or docs.
 
 ## Verifying a change
 
-There are no tests. To check something actually works, open `index.html` in a browser and
-exercise the flow. Two gotchas learned the hard way:
+Run the self-test first — no dependencies, no build step:
+
+```bash
+node tools/selftest.js
+```
+
+It covers the paths where a mistake stays invisible in the classroom: imported question
+banks as untrusted input, typed-answer matching, and whether names can reach `innerHTML`.
+Add a case to it whenever you touch those. It is not a full suite — everything else still
+needs a browser: open `index.html` and exercise the flow. Two gotchas learned the hard way:
 
 - Browser caching will serve a stale `style.css` / `game.js` and make a correct fix look
   broken. Hard-reload, or serve over `python -m http.server` and add a cache-busting query.
