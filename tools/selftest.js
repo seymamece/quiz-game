@@ -157,11 +157,119 @@ test('the vendored confetti is the browser build', () => {
   return true;
 });
 
+/* ---------- student names must be unreadable once they leave the device ----------
+   These are async because WebCrypto is. Key derivation is deliberately slow,
+   so the key is derived once and reused across the cases. */
+
+const C = require(path.join(__dirname, '..', 'sync.js'));
+
+async function cryptoTests() {
+  const salt = C.newSalt();
+  const key = await C.deriveKey('a good long passphrase', salt);
+  const wrongKey = await C.deriveKey('a good long passphras', salt);   // one character short
+
+  async function atest(name, fn) {
+    let outcome;
+    try { outcome = await fn(); } catch (e) { outcome = 'threw: ' + e.message; }
+    results.push({ name, ok: outcome === true, detail: outcome === true ? '' : String(outcome) });
+  }
+
+  await atest('an encrypted name does not contain the name', async () => {
+    const blob = await C.encrypt(key, 'Amina Nakato');
+    return (!/Amina|Nakato/.test(blob)) || 'plaintext survives in ' + blob;
+  });
+
+  await atest('a name survives the round trip', async () => {
+    const blob = await C.encrypt(key, 'Amina Nakato');
+    const back = await C.decrypt(key, blob);
+    return back === 'Amina Nakato' || 'got ' + back;
+  });
+
+  await atest('the same name twice gives different ciphertext', async () => {
+    const a = await C.encrypt(key, 'Grace');
+    const b = await C.encrypt(key, 'Grace');
+    return a !== b || 'identical ciphertext leaks which students share a name';
+  });
+
+  await atest('another device with the same passphrase can read it', async () => {
+    const blob = await C.encrypt(key, 'Hakim');
+    const school = await C.deriveKey('a good long passphrase', salt);   // same salt, fresh derive
+    return (await C.decrypt(school, blob)) === 'Hakim' || 'second device could not decrypt';
+  });
+
+  await atest('the wrong passphrase cannot read a name', async () => {
+    const blob = await C.encrypt(key, 'Esther');
+    try { const out = await C.decrypt(wrongKey, blob); return 'decrypted anyway: ' + out; }
+    catch (e) { return true; }        // AES-GCM refuses rather than returning garbage
+  });
+
+  await atest('the verifier accepts the right passphrase and rejects a typo', async () => {
+    const v = await C.makeVerifier(key);
+    if ((await C.checkVerifier(key, v)) !== true) return 'right passphrase rejected';
+    if ((await C.checkVerifier(wrongKey, v)) !== false) return 'typo accepted';
+    return true;
+  });
+
+  /* the shape the app actually stores */
+  const sample = () => ({
+    classes: { c1: { id: 'c1', name: '7-A', grade: '7', students: [{ id: 's1', name: 'Amina' }, { id: 's2', name: 'Brian' }] } },
+    subjects: { u1: { id: 'u1', name: 'Science' } },
+    attempts: [{ ts: 1, clsName: '7-A', stuId: 's1', stuName: 'Amina', qText: 'What is water?', correct: true }]
+  });
+
+  await atest('encryptState covers the roster and the answer records', async () => {
+    const enc = await C.encryptState(key, sample());
+    const roster = enc.classes.c1.students.map(s => s.name);
+    const inAttempts = enc.attempts[0].stuName;
+    if (!roster.every(C.isEncrypted)) return 'a roster name was left readable: ' + roster.join(', ');
+    if (!C.isEncrypted(inAttempts)) return 'attempts[].stuName was left readable: ' + inAttempts;
+    return true;
+  });
+
+  await atest('encryptState leaves the question bank readable', async () => {
+    const enc = await C.encryptState(key, sample());
+    if (enc.subjects.u1.name !== 'Science') return 'subject name was encrypted';
+    if (enc.classes.c1.name !== '7-A') return 'class name was encrypted';
+    if (enc.attempts[0].qText !== 'What is water?') return 'question text was encrypted';
+    if (enc.attempts[0].correct !== true) return 'result was altered';
+    return true;
+  });
+
+  await atest('no student name appears anywhere in the encrypted payload', async () => {
+    const wire = JSON.stringify(await C.encryptState(key, sample()));
+    const leaked = ['Amina', 'Brian'].filter(n => wire.includes(n));
+    return leaked.length === 0 || 'these names would be sent readable: ' + leaked.join(', ');
+  });
+
+  await atest('encryptState twice does not double-encrypt', async () => {
+    const once = await C.encryptState(key, sample());
+    const twice = await C.encryptState(key, once);
+    const back = await C.decryptState(key, twice);
+    return back.state.classes.c1.students[0].name === 'Amina' || 'name mangled by a second pass';
+  });
+
+  await atest('decryptState restores the state it started from', async () => {
+    const original = sample();
+    const back = await C.decryptState(key, await C.encryptState(key, original));
+    return JSON.stringify(back.state) === JSON.stringify(original) || 'round trip changed the state';
+  });
+
+  await atest('decryptState with the wrong passphrase reports the loss instead of hiding it', async () => {
+    const enc = await C.encryptState(key, sample());
+    const back = await C.decryptState(wrongKey, enc);
+    if (back.failed !== 3) return 'expected 3 unreadable names, got ' + back.failed;
+    if (back.state.classes.c1.students[0].name !== '???') return 'unreadable name was not flagged';
+    return true;
+  });
+}
+
 /* ---------- report ---------- */
 
-const failed = results.filter(r => !r.ok);
-for (const r of results) {
-  console.log((r.ok ? '  ok   ' : '  FAIL ') + r.name + (r.detail ? '\n         ' + r.detail : ''));
-}
-console.log(`\n${results.length - failed.length}/${results.length} passed`);
-process.exit(failed.length ? 1 : 0);
+cryptoTests().then(() => {
+  const failed = results.filter(r => !r.ok);
+  for (const r of results) {
+    console.log((r.ok ? '  ok   ' : '  FAIL ') + r.name + (r.detail ? '\n         ' + r.detail : ''));
+  }
+  console.log(`\n${results.length - failed.length}/${results.length} passed`);
+  process.exit(failed.length ? 1 : 0);
+});
