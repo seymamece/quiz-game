@@ -8,8 +8,8 @@ See [README.md](README.md) for the project overview, feature rules, and game log
 - **Commit after each working change.** Small, self-contained commits — not one big commit at the end.
 - **Don't rewrite whole files.** Make targeted edits to the lines that need changing.
 - **Database: Supabase. Ask before changing the schema.**
-  Note: there is no Supabase (or any backend) in the code today — all state lives in
-  `localStorage`, see below. Treat this rule as active from the moment a backend is added.
+  Both schemas count: `SCHEMA` in `game.js` for the stored shape, and
+  `supabase/schema.sql` for the table and its RLS policies.
 
 ## Architecture
 
@@ -19,7 +19,9 @@ Three plain files of our own code, no build step, no package manager, nothing to
 |---|---|
 | `index.html` | All markup. Loads the other two from the same folder. |
 | `style.css` | All styling. Custom properties on `:root`, one `max-width:520px` breakpoint. |
-| `game.js` | All behaviour: data model, quiz flow, reports, sounds. |
+| `game.js` | All behaviour: data model, quiz flow, reports, sounds, cloud-sync UI. |
+| `sync.js` | Cloud sync: name encryption, the push/pull rule, Supabase transport. No DOM. |
+| `supabase-config.js` | Project URL + anon key. Empty by default; sync stays off until filled. |
 
 `index.html` must be opened directly (`file://` works) or served from a folder that also
 contains `style.css`, `game.js`, `assets/` and `vendor/`. Keep it that way — no bundler.
@@ -67,8 +69,21 @@ rather than trusting them.
 
 ## Data and privacy
 
-All data (classes, students, questions, scores, history) lives in `localStorage` under
-`quiz-state-v6`. Nothing is sent anywhere; there is no network call in `game.js`.
+All data lives in `localStorage` under `quiz-state-v6`. Cloud sync is optional and off
+until `supabase-config.js` is filled in; `localStorage` stays the working copy either way,
+so the app still runs with no connection.
+
+**Student names never leave the device readable.** `sync.js` encrypts them before anything
+is sent (AES-GCM, key derived from a passphrase that is never stored or transmitted). When
+you touch the payload, remember a name lives in more places than the roster:
+
+- `classes[].students[].name` and `attempts[].stuName` — encrypted
+- `trash[]` — snapshots *and* labels like `Student "Amina"`; dropped from the payload
+  entirely, because it is a per-device 30-day undo
+
+Anything new that can hold a name must be encrypted or excluded, and given a case in the
+self-test. The `service_role` key must never appear in any file the browser can read — it
+ignores RLS; only the `anon` key belongs there.
 
 **Never commit backup files.** `quiz-backup-*.json` and exported report CSVs contain real
 student names. `.gitignore` covers them — don't add exceptions, and don't paste backup

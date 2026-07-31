@@ -24,6 +24,8 @@ A classroom quiz game for **Galaxy International School Uganda**. No installatio
 
 **Data safety** — deleted items go to a Trash with 30-day restore, Ctrl+Z undoes the last delete, and the app reminds you when a backup is overdue. Everything can be exported to a single backup file and imported on another computer.
 
+**Optional cloud sync** — prepare your yearly plan at home, open it at school. Your classes, subjects, topics, questions and scores live in your own account; **student names are encrypted on your device first**, so the server only ever stores unreadable text and never has your passphrase. Off by default — see [`supabase/README.md`](supabase/README.md) to switch it on. The app works fully offline either way.
+
 **Sounds** — a carnival tune while names spin, a tick-tock countdown, applause + fanfare for correct, a donk-zonk buzzer for wrong. All synthesized from scratch (no copyright worries) and embedded in `game.js`. Want your own sounds? See [`tools/`](tools/).
 
 ## Getting started
@@ -41,9 +43,12 @@ Demo content to try it immediately: import [`demo/demo-question-banks.json`](dem
 ## Project layout
 
 ```
-index.html      page structure — all the markup, links the other two files
+index.html      page structure — all the markup, links the scripts below
 style.css       all styling
 game.js         all behaviour: data model, quiz logic, reports, sounds
+sync.js         optional cloud sync + the encryption that protects student names
+supabase-config.js   your project URL and public key (empty = sync off)
+supabase/       the database schema and its setup guide
 assets/         gisu-logo.png — the school logo shown in the header
 vendor/         the bundled confetti library (third-party, ISC licensed)
 demo/           a ready-made question bank to try the app
@@ -81,7 +86,6 @@ Python is **only** needed for these optional tools — the game itself needs not
 
 ## Roadmap
 
-- Cloud sync (Firebase) so one teacher's setup follows them across devices
 - Question sets ("Lesson 3 review") inside topics
 - Image-based questions
 - Search across question banks
