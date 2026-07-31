@@ -78,6 +78,7 @@ async function flushSave(){
   if(!_savePending) return;
   _savePending=false;
   await storeSet(KEY, JSON.stringify(S));
+  if(typeof markDirty==='function') markDirty();   // cloud sync has something to send
 }
 window.addEventListener('beforeunload',()=>{           // never lose the last few changes
   if(_savePending){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
@@ -1893,6 +1894,183 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '){ const p=document.getElementById('pauseBtn'); if(p){ e.preventDefault(); p.click(); } }
 });
 
+/* ================== CLOUD SYNC ==================
+   UI over sync.js. Two things are kept out of S on purpose:
+
+   - the bookkeeping below (what the server held last time, whether this device
+     has unsent changes) is per-device and must never travel in the payload
+   - the encryption key, which lives in this variable and nowhere else. It is
+     never written to disk, so closing the tab means typing the passphrase
+     again. That is the point: a stolen laptop yields no readable names. */
+
+const SYNC_META='quiz-sync-meta';
+let cloudKey=null;                 // in memory only, for this tab, until reload
+
+function syncMeta(){
+  try{ return JSON.parse(localStorage.getItem(SYNC_META)||'null')||{lastSeen:null,dirty:false}; }
+  catch(e){ return {lastSeen:null,dirty:false}; }
+}
+function setSyncMeta(m){ try{ localStorage.setItem(SYNC_META,JSON.stringify(m)); }catch(e){} }
+function markDirty(){ const m=syncMeta(); if(!m.dirty){ m.dirty=true; setSyncMeta(m); } }
+
+function deviceLabel(){
+  const ua=navigator.userAgent;
+  if(/Android|iPhone|iPad/i.test(ua)) return 'a phone or tablet';
+  if(/Mac/i.test(ua)) return 'a Mac';
+  if(/Windows/i.test(ua)) return 'a Windows computer';
+  return 'a computer';
+}
+
+async function uiPassphrase(title,msg,ok='Continue'){
+  const inp=document.getElementById('mInput');
+  inp.type='password';
+  try{ return await dlg({title,msg,input:true,ok}); }
+  finally{ inp.type='text'; }
+}
+
+function cloudBody(){ return document.getElementById('cloudBody'); }
+
+function renderCloud(){
+  const el=cloudBody(); if(!el) return;
+  el.textContent='';
+  const add=(html)=>{ const d=document.createElement('div'); d.innerHTML=html; el.appendChild(d); return d; };
+
+  if(!QuizSync.configured()){
+    add('<p class="hint">Not set up yet. Cloud sync is optional — everything works without it.'
+      + ' To turn it on, follow <b>supabase/README.md</b> and fill in <b>supabase-config.js</b>.</p>');
+    return;
+  }
+
+  const user=QuizSync.currentUser();
+  if(!user){
+    const box=add('<div class="row"><input type="email" id="cloudEmail" placeholder="your school email">'
+      + '<input type="password" id="cloudPass" placeholder="password"></div>'
+      + '<div class="row" style="margin-top:8px">'
+      + '<button class="btn" id="cloudIn">Sign in</button>'
+      + '<button class="btn ghost" id="cloudUp">Create account</button></div>'
+      + '<p class="hint" style="margin-top:8px">Your password signs you in to your own account. It is not the passphrase that protects student names — you choose that separately, after signing in.</p>');
+    box.querySelector('#cloudIn').onclick=()=>doSignIn(false);
+    box.querySelector('#cloudUp').onclick=()=>doSignIn(true);
+    return;
+  }
+
+  const m=syncMeta();
+  const state=m.dirty ? 'This device has changes not yet sent.'
+            : m.lastSeen ? 'Everything here has been sent to the cloud.'
+            : 'Nothing has been synced from this device yet.';
+  const box=add('<p class="hint">Signed in as <b>'+esc(user.email||'')+'</b>. '+esc(state)
+    + (cloudKey?'':' <b>Locked</b> — you will be asked for your passphrase.')+'</p>'
+    + '<div class="row"><button class="btn" id="cloudSync">🔄 Sync now</button>'
+    + '<button class="btn ghost" id="cloudOut">Sign out</button></div>');
+  box.querySelector('#cloudSync').onclick=doSync;
+  box.querySelector('#cloudOut').onclick=async ()=>{
+    if(!await uiConfirm('Sign out of cloud sync?\nYour data stays on this computer.')) return;
+    await QuizSync.signOut(); cloudKey=null; renderCloud();
+  };
+}
+
+async function doSignIn(isNew){
+  const email=(document.getElementById('cloudEmail')||{}).value||'';
+  const pass=(document.getElementById('cloudPass')||{}).value||'';
+  if(!email.trim()||!pass){ uiAlert('Enter your email and a password first.'); return; }
+  try{
+    if(isNew){
+      const r=await QuizSync.signUp(email.trim(),pass);
+      if(r.needsConfirmation){
+        uiAlert('Account created ✔\nCheck your email and click the confirmation link, then come back and sign in.');
+        return;
+      }
+    } else {
+      await QuizSync.signIn(email.trim(),pass);
+    }
+    renderCloud();
+    showToast('Signed in ✔');
+  }catch(e){ uiAlert('Could not sign in.\n'+e.message); }
+}
+
+/* Unlocking: first time sets the passphrase, later times check it against the
+   verifier stored with the row, so a typo is caught before it turns every
+   name into unreadable text. */
+async function unlockKey(remote){
+  if(cloudKey) return true;
+  const firstTime=!(remote&&remote.exists&&remote.salt&&remote.verifier);
+  if(firstTime){
+    const p1=await uiPassphrase('Choose a passphrase',
+      'This is what keeps your students\' names unreadable in the cloud. You will type it once on each device.\n\nIt is never sent anywhere and cannot be recovered — write it down somewhere safe.','Set');
+    if(!p1||!p1.trim()) return false;
+    if(p1.trim().length<8){ uiAlert('Please use at least 8 characters.'); return false; }
+    const p2=await uiPassphrase('Type it once more','','Confirm');
+    if(p2!==p1){ uiAlert('The two did not match. Nothing was changed.'); return false; }
+    const salt=QuizSync.newSalt();
+    cloudKey=await QuizSync.deriveKey(p1,salt);
+    cloudSalt=salt; cloudVerifier=await QuizSync.makeVerifier(cloudKey);
+    return true;
+  }
+  const p=await uiPassphrase('Your passphrase','Needed to read the student names stored in your account.','Unlock');
+  if(!p) return false;
+  const key=await QuizSync.deriveKey(p,remote.salt);
+  if(!await QuizSync.checkVerifier(key,remote.verifier)){
+    uiAlert('That passphrase does not match this account.\nNothing was changed.');
+    return false;
+  }
+  cloudKey=key; cloudSalt=remote.salt; cloudVerifier=remote.verifier;
+  return true;
+}
+let cloudSalt=null, cloudVerifier=null;
+
+async function doSync(){
+  if(!QuizSync.currentUser()){ renderCloud(); return; }
+  const btn=document.getElementById('cloudSync');
+  if(btn){ btn.disabled=true; btn.textContent='Working…'; }
+  try{
+    const remote=await QuizSync.fetchRemote();
+    if(!await unlockKey(remote)) return;
+    const m=syncMeta();
+    const hasState=Object.keys(S.classes).length>0||Object.keys(S.subjects).length>0;
+    let d=QuizSync.decideSync({hasState,dirty:m.dirty,lastSeen:m.lastSeen},remote);
+
+    if(d.action==='conflict'){
+      const keepMine=await dlg({ title:'This device and the cloud both changed',
+        msg:'The copy in the cloud was last saved from '+(remote.device||'another device')
+          +'.\n\nKeep this device\'s version and overwrite the cloud, or take the cloud version and replace what is on this device?'
+          +'\n\nWhichever you drop is lost, so export a backup first if you are unsure.',
+        ok:'Keep this device', cancel:'Take the cloud version' });
+      if(keepMine===null) return;                 // dismissed — leave both alone
+      d={action: keepMine===true?'push':'pull', reason:'you chose'};
+    }
+
+    if(d.action==='push'){
+      const enc=await QuizSync.encryptState(cloudKey,S);
+      const at=await QuizSync.pushRemote(enc,cloudSalt,cloudVerifier,deviceLabel());
+      setSyncMeta({lastSeen:at,dirty:false});
+      showToast('Sent to the cloud ✔');
+    } else if(d.action==='pull'){
+      const out=await QuizSync.decryptState(cloudKey,remote.payload||{});
+      const data=out.state;
+      if(!data.classes||!data.subjects){ uiAlert('The copy in the cloud is not readable as quiz data.\nNothing on this computer was changed.'); return; }
+      /* Same replace-and-normalise path as importing a backup file: this is a
+         full snapshot, so anything only on this device is meant to go. */
+      S=Object.assign({schemaVersion:SCHEMA},data);
+      if(!S.trash) S.trash=[]; if(!S.attempts) S.attempts=[];
+      if(!S.quiz) S.quiz={mode:'individual',levelPick:'wheel',groups:3,beatSeconds:60};
+      Object.values(S.classes).forEach(c=>{ if(!c.absent)c.absent=[]; if(!c.picked)c.picked=[]; if(!c.scores)c.scores={}; });
+      undoStack=[];
+      ensureActive(); save(); await flushSave();
+      setSyncMeta({lastSeen:remote.updatedAt,dirty:false});   // after flushSave, which marks dirty
+      document.getElementById('soundBtn').textContent=S.sound?'🔊':'🔇';
+      initQuizSettings(); refreshAll(); renderBackupStatus(); renderTrash();
+      showToast(out.failed? ('Loaded, but '+out.failed+' name(s) could not be read') : 'Loaded from the cloud ✔');
+    } else {
+      showToast('Already up to date ✔');
+    }
+  }catch(e){
+    uiAlert('Sync did not finish.\n'+(e.message||'Check your internet connection and try again.'));
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='🔄 Sync now'; }
+    renderCloud();
+  }
+}
+
 /* ================== INIT ================== */
 /* The school logo is optional. If assets/gisu-logo.png is missing we hide the
    img instead of leaving a broken-image icon next to the title. Checked three
@@ -1922,5 +2100,6 @@ document.getElementById('soundBtn').onclick=function(){
   document.getElementById('soundBtn').textContent=S.sound?'🔊':'🔇';
   initQuizSettings();
   renderClasses(); renderBank(); renderSelectors(); showIdle();
+  renderCloud();
   setTimeout(maybeRemindBackup,2500);
 })();

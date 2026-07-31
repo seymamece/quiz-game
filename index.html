@@ -230,6 +230,13 @@
   <!-- ================= BACKUP ================= -->
   <section id="tab-backup">
     <div class="card" id="bakStatusCard" style="display:none"></div>
+
+    <div class="card" id="cloudCard">
+      <h2>☁️ Cloud Sync</h2>
+      <p class="hint">Prepare your yearly plan at home, open it at school. Class names, subjects, topics, questions and scores are stored in your own account. <b>Student names are encrypted on this device first</b> — the server only ever receives unreadable text, and never has your passphrase.</p>
+      <div id="cloudBody"></div>
+    </div>
+
     <div class="card">
       <h2>Backup & Move Between Computers</h2>
       <p class="hint">Your data (classes, students, subjects, topics, questions, scores) is saved in <b>this computer's browser</b> — it does not travel inside the HTML file. To use the quiz on another computer (e.g. home → school):</p>
@@ -271,6 +278,8 @@
   </div>
 </div>
 
+<script src="supabase-config.js"></script>
+<script src="sync.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

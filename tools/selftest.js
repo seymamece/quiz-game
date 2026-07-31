@@ -157,6 +157,34 @@ test('the vendored confetti is the browser build', () => {
   return true;
 });
 
+/* ---------- cloud sync wiring ---------- */
+
+test('sync.js and its config load before game.js', () => {
+  const order = [...indexHtml.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);
+  const i = n => order.indexOf(n);
+  if (i('sync.js') < 0) return 'sync.js is not loaded';
+  if (i('supabase-config.js') < 0) return 'supabase-config.js is not loaded';
+  if (!(i('supabase-config.js') < i('sync.js') && i('sync.js') < i('game.js'))) {
+    return 'wrong order — game.js calls into QuizSync during init: ' + order.join(', ');
+  }
+  return true;
+});
+
+test('supabase-config.js holds no service_role key', () => {
+  const conf = fs.readFileSync(path.join(__dirname, '..', 'supabase-config.js'), 'utf8');
+  // A Supabase key is a JWT; its middle segment says which role it grants.
+  for (const jwt of conf.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) || []) {
+    let claims;
+    try { claims = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8')); }
+    catch (e) { continue; }
+    if (claims.role && claims.role !== 'anon') {
+      return 'this key grants "' + claims.role + '" and bypasses row level security — it must ' +
+        'never sit in a file the browser can read. Use the key labelled "anon public".';
+    }
+  }
+  return true;
+});
+
 /* ---------- student names must be unreadable once they leave the device ----------
    These are async because WebCrypto is. Key derivation is deliberately slow,
    so the key is derived once and reused across the cases. */
@@ -210,11 +238,21 @@ async function cryptoTests() {
     return true;
   });
 
-  /* the shape the app actually stores */
+  /* the shape the app actually stores, including the places a name hides */
   const sample = () => ({
-    classes: { c1: { id: 'c1', name: '7-A', grade: '7', students: [{ id: 's1', name: 'Amina' }, { id: 's2', name: 'Brian' }] } },
+    classes: {
+      c1: {
+        id: 'c1', name: '7-A', grade: '7',
+        students: [{ id: 's1', name: 'Amina' }, { id: 's2', name: 'Brian' }],
+        absent: ['s2'], picked: ['s1'], scores: { s1: { pts: 20, ok: 1, no: 0 } },
+        groupState: { teams: [['s1'], ['s2']], scores: [10, 0], turn: 0, memberIdx: [0, 0] }
+      }
+    },
     subjects: { u1: { id: 'u1', name: 'Science' } },
-    attempts: [{ ts: 1, clsName: '7-A', stuId: 's1', stuName: 'Amina', qText: 'What is water?', correct: true }]
+    attempts: [{ ts: 1, clsName: '7-A', stuId: 's1', stuName: 'Amina', qText: 'What is water?', correct: true }],
+    // deleting a student parks their name in two places at once
+    trash: [{ id: 'd1', kind: 'student', label: 'Student "Cynthia"', ts: 1,
+              data: { cid: 'c1', pos: 2, stu: { id: 's3', name: 'Cynthia' } } }]
   });
 
   await atest('encryptState covers the roster and the answer records', async () => {
@@ -237,8 +275,24 @@ async function cryptoTests() {
 
   await atest('no student name appears anywhere in the encrypted payload', async () => {
     const wire = JSON.stringify(await C.encryptState(key, sample()));
-    const leaked = ['Amina', 'Brian'].filter(n => wire.includes(n));
+    // Cynthia is only in the trash — the easiest place for a name to escape.
+    const leaked = ['Amina', 'Brian', 'Cynthia'].filter(n => wire.includes(n));
     return leaked.length === 0 || 'these names would be sent readable: ' + leaked.join(', ');
+  });
+
+  await atest('the trash is not uploaded at all', async () => {
+    const wire = await C.encryptState(key, sample());
+    return wire.trash === undefined || 'deleted-student snapshots would be sent';
+  });
+
+  await atest('ids, scores and teams are left alone', async () => {
+    const wire = await C.encryptState(key, sample());
+    const c = wire.classes.c1;
+    if (c.students[0].id !== 's1') return 'a student id was altered';
+    if (JSON.stringify(c.scores) !== JSON.stringify({ s1: { pts: 20, ok: 1, no: 0 } })) return 'scores were altered';
+    if (JSON.stringify(c.groupState.teams) !== JSON.stringify([['s1'], ['s2']])) return 'teams were altered';
+    if (JSON.stringify(c.absent) !== JSON.stringify(['s2'])) return 'attendance was altered';
+    return true;
   });
 
   await atest('encryptState twice does not double-encrypt', async () => {
@@ -248,11 +302,43 @@ async function cryptoTests() {
     return back.state.classes.c1.students[0].name === 'Amina' || 'name mangled by a second pass';
   });
 
-  await atest('decryptState restores the state it started from', async () => {
+  await atest('decryptState restores everything except the trash', async () => {
     const original = sample();
+    const expected = sample(); delete expected.trash;   // dropped on purpose, not lost by accident
     const back = await C.decryptState(key, await C.encryptState(key, original));
-    return JSON.stringify(back.state) === JSON.stringify(original) || 'round trip changed the state';
+    return JSON.stringify(back.state) === JSON.stringify(expected) || 'round trip changed the state';
   });
+
+  /* which way data moves — the rule that decides whether work can be lost */
+
+  const decide = (local, remote) => C.decideSync(local, remote).action;
+  const HAS = { hasState: true, dirty: false, lastSeen: 't1' };
+
+  await atest('first upload: local data, empty cloud', async () =>
+    decide(HAS, { exists: false }) === 'push' || 'got ' + decide(HAS, { exists: false }));
+
+  await atest('a new device with no data pulls', async () =>
+    decide({ hasState: false }, { exists: true, updatedAt: 't1' }) === 'pull' || 'a fresh device did not pull');
+
+  await atest('nothing anywhere does nothing', async () =>
+    decide({ hasState: false }, { exists: false }) === 'none' || 'unexpected action on an empty setup');
+
+  await atest('local edits with an untouched cloud push', async () =>
+    decide({ hasState: true, dirty: true, lastSeen: 't1' }, { exists: true, updatedAt: 't1' }) === 'push'
+    || 'local changes were not pushed');
+
+  await atest('a newer cloud with no local edits pulls', async () =>
+    decide({ hasState: true, dirty: false, lastSeen: 't1' }, { exists: true, updatedAt: 't2' }) === 'pull'
+    || 'the newer cloud copy was not pulled');
+
+  await atest('edits on both sides are a conflict, never a silent overwrite', async () => {
+    const r = C.decideSync({ hasState: true, dirty: true, lastSeen: 't1' }, { exists: true, updatedAt: 't2' });
+    if (r.action !== 'conflict') return 'one side would have been overwritten silently: ' + r.action;
+    return !!r.reason || 'a conflict must explain itself to the teacher';
+  });
+
+  await atest('in sync means no traffic', async () =>
+    decide(HAS, { exists: true, updatedAt: 't1' }) === 'none' || 'pointless sync when nothing changed');
 
   await atest('decryptState with the wrong passphrase reports the loss instead of hiding it', async () => {
     const enc = await C.encryptState(key, sample());
