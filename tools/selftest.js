@@ -170,17 +170,26 @@ test('sync.js and its config load before game.js', () => {
   return true;
 });
 
-test('supabase-config.js holds no service_role key', () => {
+test('supabase-config.js holds no secret key', () => {
   const conf = fs.readFileSync(path.join(__dirname, '..', 'supabase-config.js'), 'utf8');
-  // A Supabase key is a JWT; its middle segment says which role it grants.
-  for (const jwt of conf.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) || []) {
+  const bad = k => 'this is a secret key (' + k + '). It bypasses row level security, so it must ' +
+    'never sit in a file the browser can read. Use the public one — labelled "anon public" on ' +
+    'older projects, "publishable" on newer ones.';
+
+  // Only look at code — the comments in this file name service_role on purpose,
+  // to warn against it.
+  const code = conf.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+
+  // Newer projects issue sb_publishable_… / sb_secret_… instead of JWTs.
+  if (/sb_secret_/.test(code)) return bad('sb_secret_…');
+  if (/service_role/.test(code)) return bad('service_role, in code');
+
+  // Legacy keys are JWTs; the middle segment says which role they grant.
+  for (const jwt of code.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) || []) {
     let claims;
     try { claims = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8')); }
     catch (e) { continue; }
-    if (claims.role && claims.role !== 'anon') {
-      return 'this key grants "' + claims.role + '" and bypasses row level security — it must ' +
-        'never sit in a file the browser can read. Use the key labelled "anon public".';
-    }
+    if (claims.role && claims.role !== 'anon') return bad(claims.role);
   }
   return true;
 });
