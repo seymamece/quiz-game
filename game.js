@@ -1969,6 +1969,26 @@ function renderCloud(){
   };
 }
 
+/* Landing here from the confirmation email. Say plainly what happened, because
+   the alternative is a teacher who sees an ordinary page, assumes the link
+   failed, and signs up again. */
+async function handleAuthRedirect(){
+  if(!QuizSync.configured()) return;
+  let r=null;
+  try{ r=await QuizSync.consumeAuthRedirect(); }catch(e){ return; }
+  if(!r) return;
+  const tab=document.querySelector('nav button[data-tab="backup"]');
+  if(tab) tab.click();          // reuses the normal tab switch, renders included
+  renderCloud();
+  if(r.ok){
+    uiAlert('Email confirmed ✔\nYou are signed in as '+(r.user&&r.user.email||'your account')
+      +'.\n\nOpen ☁️ Cloud Sync below and press Sync now to send your plan to the cloud.');
+  } else {
+    uiAlert('That link did not work.\n'+r.message
+      +'\n\nConfirmation links expire. Ask for a new one by creating the account again, or just sign in below if you already confirmed.');
+  }
+}
+
 async function doSignIn(isNew){
   const email=(document.getElementById('cloudEmail')||{}).value||'';
   const pass=(document.getElementById('cloudPass')||{}).value||'';
@@ -2101,5 +2121,6 @@ document.getElementById('soundBtn').onclick=function(){
   initQuizSettings();
   renderClasses(); renderBank(); renderSelectors(); showIdle();
   renderCloud();
+  handleAuthRedirect();
   setTimeout(maybeRemindBackup,2500);
 })();

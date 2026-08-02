@@ -257,6 +257,52 @@
 
   function currentUser() { const s = loadSession(); return s && s.user; }
 
+  /* ---------- coming back from a confirmation link ----------
+     Supabase sends the teacher back to the app with the result in the URL
+     fragment: tokens on success, an error description when the link has
+     expired. Without reading it, a confirmed teacher lands on a page that
+     looks like nothing happened and tries to sign up again. */
+
+  function parseAuthHash(hash) {
+    if (!hash || hash.length < 2) return null;
+    const p = new URLSearchParams(hash.charAt(0) === '#' ? hash.slice(1) : hash);
+    const error = p.get('error_description') || p.get('error');
+    const token = p.get('access_token');
+    if (!error && !token) return null;
+    if (error) return { ok: false, message: error.replace(/\+/g, ' ') };
+    return {
+      ok: true,
+      type: p.get('type') || 'signup',
+      access_token: token,
+      refresh_token: p.get('refresh_token'),
+      expires_in: +p.get('expires_in') || 3600
+    };
+  }
+
+  async function consumeAuthRedirect() {
+    const loc = root.location;
+    const parsed = parseAuthHash(loc && loc.hash);
+    if (!parsed) return null;
+    // Drop the tokens out of the address bar and history straight away.
+    try { root.history.replaceState(null, '', loc.pathname + (loc.search || '')); } catch (e) {}
+    if (!parsed.ok) return parsed;
+
+    saveSession({
+      access_token: parsed.access_token,
+      refresh_token: parsed.refresh_token,
+      expires_at: Date.now() + parsed.expires_in * 1000 - 60000,
+      user: null
+    });
+    try {
+      const u = await authFetch('/auth/v1/user', { method: 'GET' });
+      saveSession(Object.assign({}, session, { user: { id: u.id, email: u.email } }));
+      return { ok: true, type: parsed.type, user: currentUser() };
+    } catch (e) {
+      saveSession(null);
+      return { ok: false, message: 'Your email is confirmed, but signing in here did not finish. Please sign in below.' };
+    }
+  }
+
   async function signOut() {
     try { await authFetch('/auth/v1/logout', { method: 'POST' }); } catch (e) {}
     saveSession(null);
@@ -287,7 +333,7 @@
   const api = { newSalt, deriveKey, encrypt, decrypt, isEncrypted, makeVerifier, checkVerifier,
                 encryptState, decryptState, MARK, PBKDF2_ROUNDS,
                 decideSync, configured, signUp, signIn, signOut, currentUser, validSession,
-                fetchRemote, pushRemote, SESSION_KEY };
+                fetchRemote, pushRemote, SESSION_KEY, parseAuthHash, consumeAuthRedirect };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.QuizCrypto = api;

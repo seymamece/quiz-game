@@ -318,6 +318,36 @@ async function cryptoTests() {
     return JSON.stringify(back.state) === JSON.stringify(expected) || 'round trip changed the state';
   });
 
+  /* coming back from the confirmation email — a 404 or a blank page here makes
+     a teacher think the link failed and sign up again */
+
+  await atest('a confirmation redirect is recognised and its tokens read', async () => {
+    const r = C.parseAuthHash('#access_token=abc123&expires_in=3600&refresh_token=r9&token_type=bearer&type=signup');
+    if (!r || r.ok !== true) return 'a successful confirmation was not recognised';
+    if (r.access_token !== 'abc123' || r.refresh_token !== 'r9') return 'tokens not read';
+    if (r.type !== 'signup') return 'link type not read';
+    return r.expires_in === 3600 || 'expiry not read';
+  });
+
+  await atest('an expired link is reported, not treated as success', async () => {
+    const r = C.parseAuthHash('#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired');
+    if (!r) return 'an expired link was ignored entirely';
+    if (r.ok !== false) return 'an expired link was treated as a successful sign-in';
+    return /invalid or has expired/.test(r.message) || 'the reason was not passed on: ' + r.message;
+  });
+
+  await atest('an ordinary visit is left alone', async () => {
+    for (const h of ['', '#', '#tab=quiz']) {
+      if (C.parseAuthHash(h) !== null) return 'a normal page load was mistaken for a sign-in: "' + h + '"';
+    }
+    return true;
+  });
+
+  await atest('a recovery link is handled the same way', async () => {
+    const r = C.parseAuthHash('#access_token=t&expires_in=3600&refresh_token=r&type=recovery');
+    return (r && r.ok === true && r.type === 'recovery') || 'password recovery links would be dropped';
+  });
+
   /* which way data moves — the rule that decides whether work can be lost */
 
   const decide = (local, remote) => C.decideSync(local, remote).action;
