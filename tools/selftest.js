@@ -194,6 +194,40 @@ test('supabase-config.js holds no secret key', () => {
   return true;
 });
 
+test('saving marks the state dirty and schedules an automatic sync', () => {
+  const m = src.match(/^function markDirty\(\)\{[\s\S]*?^\}/m);
+  if (!m) return 'markDirty is gone — nothing would notice local changes';
+  if (!/scheduleAutoSync\(\)/.test(m[0])) {
+    return 'markDirty no longer schedules a sync, so work would silently stop reaching the cloud ' +
+      'until someone pressed the button';
+  }
+  return /markDirty\(\)/.test(src.match(/^async function flushSave[\s\S]*?^\}/m)[0])
+    || 'flushSave no longer calls markDirty';
+});
+
+test('an automatic sync never resolves a conflict on its own', () => {
+  const m = src.match(/^async function doSync[\s\S]*?\n\}/m);
+  if (!m) return 'doSync is gone';
+  const conflict = m[0].slice(m[0].indexOf("d.action==='conflict'"));
+  if (!conflict) return 'the conflict branch is gone';
+  const beforePrompt = conflict.slice(0, conflict.indexOf('dlg({'));
+  return /opts\.manual/.test(beforePrompt)
+    || 'a background sync could overwrite one side without the teacher choosing';
+});
+
+test('the last-synced time reads as plain English', () => {
+  const m = src.match(/^function ago\([\s\S]*?^\}/m);
+  if (!m) return 'ago() is gone';
+  const ago = new Function(m[0] + '; return ago;')();
+  const cases = [
+    [0, /just now/], [30 * 1000, /just now/], [5 * 60 * 1000, /5 minutes ago/],
+    [60 * 60 * 1000, /1 hour ago/], [3 * 24 * 60 * 60 * 1000, /3 days ago/]
+  ];
+  const bad = cases.filter(([d, want]) => !want.test(ago(Date.now() - d)));
+  if (bad.length) return 'unexpected wording for ' + bad.map(b => b[0] + 'ms').join(', ');
+  return ago(null) === '' || 'a never-synced device should show no time at all';
+});
+
 test('sign-in errors are translated into something a teacher can act on', () => {
   const m = src.match(/^function signInProblem[\s\S]*?^}/m);
   if (!m) return 'signInProblem is gone — Supabase error strings would reach the teacher raw';

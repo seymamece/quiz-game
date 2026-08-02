@@ -1906,12 +1906,17 @@ document.addEventListener('keydown',e=>{
 const SYNC_META='quiz-sync-meta';
 let cloudKey=null;                 // in memory only, for this tab, until reload
 
+const EMPTY_META={lastSeen:null,dirty:false,lastSyncAt:null};
 function syncMeta(){
-  try{ return JSON.parse(localStorage.getItem(SYNC_META)||'null')||{lastSeen:null,dirty:false}; }
-  catch(e){ return {lastSeen:null,dirty:false}; }
+  try{ return Object.assign({},EMPTY_META,JSON.parse(localStorage.getItem(SYNC_META)||'null')); }
+  catch(e){ return Object.assign({},EMPTY_META); }
 }
 function setSyncMeta(m){ try{ localStorage.setItem(SYNC_META,JSON.stringify(m)); }catch(e){} }
-function markDirty(){ const m=syncMeta(); if(!m.dirty){ m.dirty=true; setSyncMeta(m); } }
+function markDirty(){
+  const m=syncMeta();
+  if(!m.dirty){ m.dirty=true; setSyncMeta(m); if(typeof renderCloud==='function') renderCloud(); }
+  scheduleAutoSync();          // push once the teacher stops changing things
+}
 
 function deviceLabel(){
   const ua=navigator.userAgent;
@@ -1930,13 +1935,46 @@ async function uiPassphrase(title,msg,ok='Continue'){
 
 function cloudBody(){ return document.getElementById('cloudBody'); }
 
+/* Sync runs by itself. The teacher signs in once per device and types the
+   passphrase once per browser session; after that, changes go up on their own
+   a few seconds after they stop editing. Pressing a button to save the day's
+   scores is exactly the step a busy teacher forgets. */
+
+let cloudBusy=false, unlockDeclined=false, syncProblem=null, autoTimer=null;
+const AUTO_DELAY=8000;             // quiet period before an automatic push
+
+function scheduleAutoSync(){
+  if(!QuizSync.configured()||!QuizSync.currentUser()) return;
+  clearTimeout(autoTimer);
+  autoTimer=setTimeout(()=>doSync({auto:true}),AUTO_DELAY);
+}
+
+function ago(ts){
+  if(!ts) return '';
+  const s=Math.round((Date.now()-ts)/1000);
+  if(s<90) return 'just now';
+  const m=Math.round(s/60); if(m<60) return m+' minute'+(m===1?'':'s')+' ago';
+  const h=Math.round(m/60); if(h<24) return h+' hour'+(h===1?'':'s')+' ago';
+  const d=Math.round(h/24); return d+' day'+(d===1?'':'s')+' ago';
+}
+
+function cloudStatus(){
+  const m=syncMeta();
+  if(syncProblem) return {text:syncProblem, colour:'var(--red)'};
+  if(cloudBusy) return {text:'Syncing…', colour:'var(--dim)'};
+  if(!cloudKey&&m.dirty) return {text:'Waiting for your passphrase to save your latest changes.', colour:'var(--yellow-deep)'};
+  if(m.dirty) return {text:'Saving your latest changes…', colour:'var(--dim)'};
+  if(m.lastSyncAt) return {text:'Everything is saved to the cloud · '+ago(m.lastSyncAt), colour:'var(--green-deep)'};
+  return {text:'Nothing has been sent from this computer yet.', colour:'var(--dim)'};
+}
+
 function renderCloud(){
   const el=cloudBody(); if(!el) return;
   el.textContent='';
-  const add=(html)=>{ const d=document.createElement('div'); d.innerHTML=html; el.appendChild(d); return d; };
+  const add=html=>{ const d=document.createElement('div'); d.innerHTML=html; el.appendChild(d); return d; };
 
   if(!QuizSync.configured()){
-    add('<p class="hint">Not set up yet. Cloud sync is optional — everything works without it.'
+    add('<p class="hint">Not set up yet. Cloud sync is optional — everything else works without it.'
       + ' To turn it on, follow <b>supabase/README.md</b> and fill in <b>supabase-config.js</b>.</p>');
     return;
   }
@@ -1945,66 +1983,59 @@ function renderCloud(){
   if(!user){
     const box=add('<div class="row"><input type="email" id="cloudEmail" placeholder="your school email">'
       + '<input type="password" id="cloudPass" placeholder="password"></div>'
-      + '<div class="row" style="margin-top:8px">'
-      + '<button class="btn" id="cloudIn">Sign in</button>'
-      + '<button class="btn ghost" id="cloudUp">Create account</button></div>'
-      + '<p class="hint" style="margin-top:8px">Your password signs you in to your own account. It is not the passphrase that protects student names — you choose that separately, after signing in.</p>');
-    box.querySelector('#cloudIn').onclick=()=>doSignIn(false);
-    box.querySelector('#cloudUp').onclick=()=>doSignIn(true);
+      + '<div class="row" style="margin-top:8px"><button class="btn" id="cloudIn">Sign in</button></div>'
+      + '<p class="hint" style="margin-top:8px">Accounts are made for you by whoever set up the school\'s cloud sync — ask them if you do not have one yet. You only sign in once on each computer.</p>');
+    box.querySelector('#cloudIn').onclick=doSignIn;
+    box.querySelector('#cloudPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doSignIn(); });
     return;
   }
 
-  const m=syncMeta();
-  const state=m.dirty ? 'This device has changes not yet sent.'
-            : m.lastSeen ? 'Everything here has been sent to the cloud.'
-            : 'Nothing has been synced from this device yet.';
-  const box=add('<p class="hint">Signed in as <b>'+esc(user.email||'')+'</b>. '+esc(state)
-    + (cloudKey?'':' <b>Locked</b> — you will be asked for your passphrase.')+'</p>'
-    + '<div class="row"><button class="btn" id="cloudSync">🔄 Sync now</button>'
-    + '<button class="btn ghost" id="cloudOut">Sign out</button></div>');
-  box.querySelector('#cloudSync').onclick=doSync;
+  const st=cloudStatus();
+  const box=add('<p class="hint" style="color:'+st.colour+';margin:0"><b>'+esc(user.email||'')+'</b><br>'+esc(st.text)+'</p>'
+    + '<div class="row" style="margin-top:10px">'
+    + '<button class="btn ghost small" id="cloudSync">🔄 Sync now</button>'
+    + '<button class="btn ghost small" id="cloudOut">Sign out</button></div>');
+  box.querySelector('#cloudSync').onclick=()=>doSync({manual:true});
   box.querySelector('#cloudOut').onclick=async ()=>{
     if(!await uiConfirm('Sign out of cloud sync?\nYour data stays on this computer.')) return;
-    await QuizSync.signOut(); cloudKey=null; renderCloud();
+    clearTimeout(autoTimer);
+    await QuizSync.signOut();
+    cloudKey=null; cloudSalt=null; cloudVerifier=null; unlockDeclined=false; syncProblem=null;
+    renderCloud();
   };
 }
 
-/* Landing here from the confirmation email. Say plainly what happened, because
-   the alternative is a teacher who sees an ordinary page, assumes the link
-   failed, and signs up again. */
+/* Landing here from a confirmation or password-reset link. Say plainly what
+   happened, because the alternative is a teacher who sees an ordinary page,
+   assumes the link failed, and tries again. */
 async function handleAuthRedirect(){
   if(!QuizSync.configured()) return;
   let r=null;
   try{ r=await QuizSync.consumeAuthRedirect(); }catch(e){ return; }
   if(!r) return;
   const tab=document.querySelector('nav button[data-tab="backup"]');
-  if(tab) tab.click();          // reuses the normal tab switch, renders included
+  if(tab) tab.click();
   renderCloud();
   if(r.ok){
-    uiAlert('Email confirmed ✔\nYou are signed in as '+(r.user&&r.user.email||'your account')
-      +'.\n\nOpen ☁️ Cloud Sync below and press Sync now to send your plan to the cloud.');
+    uiAlert('Signed in ✔\nYou are signed in as '+(r.user&&r.user.email||'your account')
+      +'.\n\nYour work will now be saved to the cloud on its own.');
+    doSync({auto:true});
   } else {
     uiAlert('That link did not work.\n'+r.message
-      +'\n\nConfirmation links expire. Ask for a new one by creating the account again, or just sign in below if you already confirmed.');
+      +'\n\nLinks expire after a while. Sign in below with your email and password instead.');
   }
 }
 
-async function doSignIn(isNew){
+async function doSignIn(){
   const email=(document.getElementById('cloudEmail')||{}).value||'';
   const pass=(document.getElementById('cloudPass')||{}).value||'';
-  if(!email.trim()||!pass){ uiAlert('Enter your email and a password first.'); return; }
+  if(!email.trim()||!pass){ uiAlert('Enter your email and password first.'); return; }
   try{
-    if(isNew){
-      const r=await QuizSync.signUp(email.trim(),pass);
-      if(r.needsConfirmation){
-        uiAlert('Account created ✔\nCheck your email and click the confirmation link, then come back and sign in.');
-        return;
-      }
-    } else {
-      await QuizSync.signIn(email.trim(),pass);
-    }
+    await QuizSync.signIn(email.trim(),pass);
+    syncProblem=null; unlockDeclined=false;
     renderCloud();
     showToast('Signed in ✔');
+    doSync({manual:true});
   }catch(e){ uiAlert(signInProblem(e.message||'')); }
 }
 
@@ -2017,27 +2048,27 @@ function signInProblem(msg){
   if(m.indexOf('signup')>=0&&m.indexOf('not allowed')>=0 || m.indexOf('signup_disabled')>=0)
     return 'New accounts are not open here.\nAsk whoever set up the school\'s cloud sync to create one for you, then sign in with it.';
   if(m.indexOf('already registered')>=0||m.indexOf('already been registered')>=0)
-    return 'That email already has an account.\nUse Sign in instead — no need to create it again.';
+    return 'That email already has an account.\nUse your password to sign in — no need to create it again.';
   if(m.indexOf('invalid login')>=0||m.indexOf('invalid credentials')>=0)
-    return 'That email and password do not match an account.\nCheck for typos. If you have never signed in here before, use Create account.';
+    return 'That email and password do not match an account.\nCheck for typos, and ask whoever set this up if you are not sure the account exists yet.';
   if(m.indexOf('not confirmed')>=0||m.indexOf('email not confirmed')>=0)
-    return 'This account still needs confirming.\nOpen the link in the email we sent. If it never arrived, ask for the account to be confirmed from the Supabase dashboard.';
+    return 'This account still needs confirming.\nAsk whoever set up the school\'s cloud sync to confirm it from the Supabase dashboard.';
   if(m.indexOf('password')>=0&&m.indexOf('6')>=0)
     return 'That password is too short — use at least 6 characters.';
   if(m.indexOf('failed to fetch')>=0||m.indexOf('networkerror')>=0)
-    return 'No connection to the cloud.\nThe quiz itself works offline; try syncing again when you are back online.';
+    return 'No connection to the cloud.\nThe quiz itself works offline; it will sync when you are back online.';
   return 'Could not sign in.\n'+msg;
 }
 
 /* Unlocking: first time sets the passphrase, later times check it against the
    verifier stored with the row, so a typo is caught before it turns every
-   name into unreadable text. */
+   name into unreadable text. Asked once per browser session, never stored. */
 async function unlockKey(remote){
   if(cloudKey) return true;
   const firstTime=!(remote&&remote.exists&&remote.salt&&remote.verifier);
   if(firstTime){
     const p1=await uiPassphrase('Choose a passphrase',
-      'This is what keeps your students\' names unreadable in the cloud. You will type it once on each device.\n\nIt is never sent anywhere and cannot be recovered — write it down somewhere safe.','Set');
+      'This is what keeps your students\' names unreadable in the cloud. You type it once each time you open the app on a computer.\n\nIt is never sent anywhere and cannot be recovered — write it down somewhere safe.','Set');
     if(!p1||!p1.trim()) return false;
     if(p1.trim().length<8){ uiAlert('Please use at least 8 characters.'); return false; }
     const p2=await uiPassphrase('Type it once more','','Confirm');
@@ -2059,58 +2090,86 @@ async function unlockKey(remote){
 }
 let cloudSalt=null, cloudVerifier=null;
 
-async function doSync(){
-  if(!QuizSync.currentUser()){ renderCloud(); return; }
-  const btn=document.getElementById('cloudSync');
-  if(btn){ btn.disabled=true; btn.textContent='Working…'; }
+async function doSync(opts){
+  opts=opts||{};
+  if(cloudBusy) return;
+  if(!QuizSync.configured()||!QuizSync.currentUser()) return;
+  clearTimeout(autoTimer);
+  cloudBusy=true; syncProblem=null; renderCloud();
   try{
     const remote=await QuizSync.fetchRemote();
-    if(!await unlockKey(remote)) return;
     const m=syncMeta();
     const hasState=Object.keys(S.classes).length>0||Object.keys(S.subjects).length>0;
     let d=QuizSync.decideSync({hasState,dirty:m.dirty,lastSeen:m.lastSeen},remote);
 
+    if(d.action==='none'){
+      if(opts.manual) showToast('Already up to date ✔');
+      return;
+    }
+
     if(d.action==='conflict'){
-      const keepMine=await dlg({ title:'This device and the cloud both changed',
+      /* Never interrupt a lesson with this. On an automatic run just say so and
+         wait for the teacher to come and choose. */
+      if(!opts.manual){
+        syncProblem='The cloud has a different copy, saved from '+(remote.device||'another device')
+          +'. Press Sync now to choose which one to keep.';
+        return;
+      }
+      const keepMine=await dlg({ title:'This computer and the cloud both changed',
         msg:'The copy in the cloud was last saved from '+(remote.device||'another device')
-          +'.\n\nKeep this device\'s version and overwrite the cloud, or take the cloud version and replace what is on this device?'
+          +'.\n\nKeep this computer\'s version and overwrite the cloud, or take the cloud version and replace what is here?'
           +'\n\nWhichever you drop is lost, so export a backup first if you are unsure.',
-        ok:'Keep this device', cancel:'Take the cloud version' });
-      if(keepMine===null) return;                 // dismissed — leave both alone
-      d={action: keepMine===true?'push':'pull', reason:'you chose'};
+        ok:'Keep this computer', cancel:'Take the cloud version' });
+      if(keepMine===null) return;
+      d={action: keepMine===true?'push':'pull'};
+    }
+
+    if(!cloudKey){
+      if(!opts.manual&&unlockDeclined) return;         // asked once already this session
+      if(!await unlockKey(remote)){
+        if(!opts.manual) unlockDeclined=true;
+        syncProblem='Locked. Press Sync now and enter your passphrase to save to the cloud.';
+        return;
+      }
     }
 
     if(d.action==='push'){
       const enc=await QuizSync.encryptState(cloudKey,S);
       const at=await QuizSync.pushRemote(enc,cloudSalt,cloudVerifier,deviceLabel());
-      setSyncMeta({lastSeen:at,dirty:false});
-      showToast('Sent to the cloud ✔');
+      setSyncMeta({lastSeen:at,dirty:false,lastSyncAt:Date.now()});
+      if(opts.manual) showToast('Saved to the cloud ✔');
     } else if(d.action==='pull'){
       const out=await QuizSync.decryptState(cloudKey,remote.payload||{});
       const data=out.state;
-      if(!data.classes||!data.subjects){ uiAlert('The copy in the cloud is not readable as quiz data.\nNothing on this computer was changed.'); return; }
+      if(!data.classes||!data.subjects){
+        syncProblem='The copy in the cloud is not readable as quiz data. Nothing here was changed.';
+        return;
+      }
       /* Same replace-and-normalise path as importing a backup file: this is a
-         full snapshot, so anything only on this device is meant to go. */
+         full snapshot, so anything only on this computer is meant to go. */
       S=Object.assign({schemaVersion:SCHEMA},data);
       if(!S.trash) S.trash=[]; if(!S.attempts) S.attempts=[];
       if(!S.quiz) S.quiz={mode:'individual',levelPick:'wheel',groups:3,beatSeconds:60};
       Object.values(S.classes).forEach(c=>{ if(!c.absent)c.absent=[]; if(!c.picked)c.picked=[]; if(!c.scores)c.scores={}; });
       undoStack=[];
       ensureActive(); save(); await flushSave();
-      setSyncMeta({lastSeen:remote.updatedAt,dirty:false});   // after flushSave, which marks dirty
+      setSyncMeta({lastSeen:remote.updatedAt,dirty:false,lastSyncAt:Date.now()});  // after flushSave, which marks dirty
       document.getElementById('soundBtn').textContent=S.sound?'🔊':'🔇';
       initQuizSettings(); refreshAll(); renderBackupStatus(); renderTrash();
       showToast(out.failed? ('Loaded, but '+out.failed+' name(s) could not be read') : 'Loaded from the cloud ✔');
-    } else {
-      showToast('Already up to date ✔');
     }
   }catch(e){
-    uiAlert('Sync did not finish.\n'+(e.message||'Check your internet connection and try again.'));
+    const msg=e&&e.message||'';
+    if(/failed to fetch|networkerror/i.test(msg)) syncProblem='No connection — your work is saved on this computer and will sync later.';
+    else if(/not signed in/i.test(msg)) syncProblem='Signed out. Sign in again to keep syncing.';
+    else syncProblem='Could not sync: '+msg;
+    if(opts.manual) uiAlert('Sync did not finish.\n'+syncProblem);
   }finally{
-    if(btn){ btn.disabled=false; btn.textContent='🔄 Sync now'; }
+    cloudBusy=false;
     renderCloud();
   }
 }
+
 
 /* ================== INIT ================== */
 /* The school logo is optional. If assets/gisu-logo.png is missing we hide the
@@ -2143,5 +2202,9 @@ document.getElementById('soundBtn').onclick=function(){
   renderClasses(); renderBank(); renderSelectors(); showIdle();
   renderCloud();
   handleAuthRedirect();
+  /* Pick up anything the other computer sent, and send anything left over from
+     last time. Silent when there is nothing to do, so opening the app offline
+     or with nothing changed asks for no passphrase and shows no dialog. */
+  setTimeout(()=>doSync({auto:true}),1200);
   setTimeout(maybeRemindBackup,2500);
 })();
