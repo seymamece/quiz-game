@@ -194,6 +194,24 @@ test('supabase-config.js holds no secret key', () => {
   return true;
 });
 
+test('sign-in errors are translated into something a teacher can act on', () => {
+  const m = src.match(/^function signInProblem[\s\S]*?^}/m);
+  if (!m) return 'signInProblem is gone — Supabase error strings would reach the teacher raw';
+  const fn = new Function(m[0] + '; return signInProblem;')();
+  const cases = [
+    ['email rate limit exceeded', /only a few messages per hour/i],
+    ['Signups not allowed for this instance', /not open here/i],
+    ['User already registered', /already has an account/i],
+    ['Invalid login credentials', /do not match an account/i],
+    ['Email not confirmed', /needs confirming/i],
+    ['Failed to fetch', /no connection/i]
+  ];
+  const bad = cases.filter(([msg, want]) => !want.test(fn(msg))).map(c => c[0]);
+  if (bad.length) return 'still shown raw: ' + bad.join('; ');
+  // anything unrecognised must still surface the original text, not swallow it
+  return /banana/.test(fn('banana')) || 'an unknown error loses its message';
+});
+
 /* ---------- student names must be unreadable once they leave the device ----------
    These are async because WebCrypto is. Key derivation is deliberately slow,
    so the key is derived once and reused across the cases. */

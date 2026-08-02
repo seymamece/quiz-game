@@ -2005,7 +2005,28 @@ async function doSignIn(isNew){
     }
     renderCloud();
     showToast('Signed in ✔');
-  }catch(e){ uiAlert('Could not sign in.\n'+e.message); }
+  }catch(e){ uiAlert(signInProblem(e.message||'')); }
+}
+
+/* Supabase's own messages are written for developers. Translate the ones a
+   teacher can actually hit into something they can act on. */
+function signInProblem(msg){
+  const m=msg.toLowerCase();
+  if(m.indexOf('rate limit')>=0)
+    return 'Too many emails for now.\nThe free email service allows only a few messages per hour, and that limit has been reached.\n\nWait an hour and try again, or ask whoever set this up to create your account from the Supabase dashboard — that needs no email at all.';
+  if(m.indexOf('signup')>=0&&m.indexOf('not allowed')>=0 || m.indexOf('signup_disabled')>=0)
+    return 'New accounts are not open here.\nAsk whoever set up the school\'s cloud sync to create one for you, then sign in with it.';
+  if(m.indexOf('already registered')>=0||m.indexOf('already been registered')>=0)
+    return 'That email already has an account.\nUse Sign in instead — no need to create it again.';
+  if(m.indexOf('invalid login')>=0||m.indexOf('invalid credentials')>=0)
+    return 'That email and password do not match an account.\nCheck for typos. If you have never signed in here before, use Create account.';
+  if(m.indexOf('not confirmed')>=0||m.indexOf('email not confirmed')>=0)
+    return 'This account still needs confirming.\nOpen the link in the email we sent. If it never arrived, ask for the account to be confirmed from the Supabase dashboard.';
+  if(m.indexOf('password')>=0&&m.indexOf('6')>=0)
+    return 'That password is too short — use at least 6 characters.';
+  if(m.indexOf('failed to fetch')>=0||m.indexOf('networkerror')>=0)
+    return 'No connection to the cloud.\nThe quiz itself works offline; try syncing again when you are back online.';
+  return 'Could not sign in.\n'+msg;
 }
 
 /* Unlocking: first time sets the passphrase, later times check it against the
