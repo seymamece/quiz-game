@@ -13,5 +13,5 @@
    Never put the "service_role" key here. It bypasses those policies entirely
    and would expose every teacher's data to anyone who opened the page. */
 
-window.SUPABASE_URL = '';
-window.SUPABASE_ANON_KEY = '';
+window.SUPABASE_URL = 'https://oacqveknfmdhsijocujk.supabase.co';
+window.SUPABASE_ANON_KEY = 'sb_publishable_z5PdE9cRTrYPBX7MipIR0g_TTVjIeb1';
