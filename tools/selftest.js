@@ -180,7 +180,11 @@ test('every local script and stylesheet carries a ?v= stamp', () => {
 
 test('the ?v= stamp matches what the files actually contain', () => {
   const want = assetVersion();
-  const stamps = [...indexHtml.matchAll(/(?:src|href)="[^"]+\?v=([0-9a-f]+)"/g)].map(m => m[1]);
+  // only the hashed assets — other files (the favicon, say) carry their own stamp
+  const stamps = VERSIONED.map(a => {
+    const m = indexHtml.match(new RegExp('(?:src|href)="' + a.replace('.', '\\.') + '\\?v=([0-9a-z]+)"'));
+    return m && m[1];
+  }).filter(Boolean);
   const wrong = [...new Set(stamps)].filter(s => s !== want);
   if (wrong.length) {
     return 'index.html says v=' + wrong.join('/') + ' but the files hash to ' + want +
@@ -188,6 +192,13 @@ test('the ?v= stamp matches what the files actually contain', () => {
       'a half-updated app after this deploy.';
   }
   return stamps.length > 0 || 'no stamps found at all';
+});
+
+test('the tab icon is declared and the files are there', () => {
+  const refs = [...indexHtml.matchAll(/<link[^>]*rel="(?:icon|apple-touch-icon)"[^>]*href="([^"?]+)/g)].map(m => m[1]);
+  if (!refs.length) return 'no favicon declared — the browser tab falls back to a grey globe';
+  const missing = refs.filter(r => !fs.existsSync(path.join(__dirname, '..', r)));
+  return missing.length === 0 || 'declared but not in the repo: ' + missing.join(', ');
 });
 
 /* ---------- pictures attached to questions ----------
