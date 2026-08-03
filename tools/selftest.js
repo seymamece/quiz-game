@@ -157,6 +157,46 @@ test('the vendored confetti is the browser build', () => {
   return true;
 });
 
+/* ---------- pictures attached to questions ----------
+   A picture can arrive inside an imported bank, so its value is as untrusted
+   as the question text around it. */
+
+test('only a real data:image URI is allowed into a src attribute', () => {
+  const m = src.match(/^const IMG_URI_RE[\s\S]*?^function imgTag[\s\S]*?^\}/m);
+  if (!m) return 'the picture validator is gone — an imported bank could inject markup';
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const { safeImgUri, imgTag } = new Function('esc',
+    m[0] + '; return {safeImgUri, imgTag};')(esc);
+
+  const ok = 'data:image/png;base64,iVBORw0KGgo=';
+  if (safeImgUri(ok) !== ok) return 'a genuine picture was rejected';
+  if (!/<img class="stageImg" src="data:image\/png;base64,iVBORw0KGgo="/.test(imgTag(ok, 'stageImg')))
+    return 'a genuine picture did not render';
+
+  const hostile = [
+    'data:image/png;base64,x" onerror="alert(1)',
+    'javascript:alert(1)',
+    'data:text/html;base64,PHNjcmlwdD4=',
+    'https://example.com/tracker.png',      // would phone home from a lesson
+    '"><script>alert(1)</script>',
+    'data:image/svg+xml;base64,PHN2Zz4='    // SVG can carry script
+  ];
+  const leaked = hostile.filter(h => imgTag(h, 'stageImg') !== '');
+  return leaked.length === 0 || 'these reached the page: ' + leaked.join(' | ');
+});
+
+test('a v6 backup is not run through the pre-v6 migration', () => {
+  const m = src.match(/if\(!data\.schemaVersion \|\| data\.schemaVersion<(\w+)\)/);
+  if (!m) return 'the backup import version check is gone';
+  if (m[1] !== '6') {
+    return 'the check compares against ' + m[1] + '. Now that SCHEMA is past 6, every existing ' +
+      'v6 backup would be fed through migrateToV6, which only understands the older name-keyed ' +
+      'format, and come out wrecked.';
+  }
+  return true;
+});
+
 /* ---------- cloud sync wiring ---------- */
 
 test('sync.js and its config load before game.js', () => {

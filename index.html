@@ -150,6 +150,15 @@
       <div class="row">
         <input type="text" id="qText" placeholder="Type a question…">
       </div>
+      <div class="imgZone" id="qImgZone" tabindex="0">
+        <div id="qImgEmpty">🖼️ <b>Picture (optional)</b> — copy a diagram from a book or worksheet and press <b>Ctrl+V</b> here, or <button class="btn ghost small" id="qImgPick" type="button">choose a file</button></div>
+        <div id="qImgHas" style="display:none">
+          <img id="qImgPreview" alt="Picture for this question">
+          <div class="imgMeta"><span id="qImgSize"></span>
+            <button class="btn ghost small" id="qImgDrop" type="button">Remove picture</button></div>
+        </div>
+        <input type="file" id="qImgFile" accept="image/*" style="display:none">
+      </div>
       <div class="row" style="margin-top:8px">
         <input type="text" id="qAns" placeholder="Answer (optional, only the teacher sees it)">
         <button class="btn" id="qAdd">Add Question</button>

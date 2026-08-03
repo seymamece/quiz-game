@@ -13,6 +13,8 @@ A classroom quiz game for **Galaxy International School Uganda**. No installatio
 
 **Question banks that match how schools work** — Subjects → Grades → Topics → Easy/Medium/Hard. Classes detect their grade from their name (`7-A` → Grade 7), and the quiz screen only offers topics for that grade.
 
+**Pictures in questions** — copy a diagram out of a textbook or worksheet and press Ctrl+V while adding a question; it is shrunk automatically and travels with the question everywhere, including offline. Drag-and-drop and file picking work too.
+
 **Get questions in fast**
 - 📄 *Import from Word/text*: paste a whole yearly plan with `Subject:` / `Grade:` / `Topic:` / `Easy` markers — every question lands in the right place. Turkish markers (`Ders:`, `Konu:`, `Kolay`…) work too. A template is included: [`tools/question-plan-template.txt`](tools/question-plan-template.txt)
 - 📝 *Bulk add*: paste many questions at once, one per line or in blocks.
@@ -87,7 +89,7 @@ Python is **only** needed for these optional tools — the game itself needs not
 ## Roadmap
 
 - Question sets ("Lesson 3 review") inside topics
-- Image-based questions
+- Tables inside questions
 - Search across question banks
 
 ## Contributing

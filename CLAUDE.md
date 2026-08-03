@@ -19,7 +19,7 @@ Three plain files of our own code, no build step, no package manager, nothing to
 |---|---|
 | `index.html` | All markup. Loads the other two from the same folder. |
 | `style.css` | All styling. Custom properties on `:root`, one `max-width:520px` breakpoint. |
-| `game.js` | All behaviour: data model, quiz flow, reports, sounds, cloud-sync UI. |
+| `game.js` | All behaviour: data model, quiz flow, reports, sounds, pictures, cloud-sync UI. |
 | `sync.js` | Cloud sync: name encryption, the push/pull rule, Supabase transport. No DOM. |
 | `supabase-config.js` | Project URL + anon key. Empty by default; sync stays off until filled. |
 
@@ -38,15 +38,16 @@ tag and `fireConfetti()` swallows the failure silently.
 Jump straight to the right band instead of reading the whole file:
 
 ```
-   1  DATA MODEL (schema 6) — full shape of every entity, read this first
-  64  const KEY='quiz-state-v6'   persistence + load/save
- 210  SOUND (MY_SOUNDS block at 211)
- 250  SMALL HELPERS      263  STYLED DIALOGS     298  TRASH & UNDO
- 358  FULLSCREEN & TABS  382  CLASSES            450  STUDENTS
- 526  QUESTION BANKS     804  TOPICS             898  QUESTIONS
-1038  SCOREBOARD        1203  BACKUP & TRASH    1316  QUIZ SELECTORS & BANNER
-1340  QUIZ SETTINGS     1386  QUIZ FLOW         1848  CONFETTI
-1860  KEYBOARD          1872  INIT
+   1  DATA MODEL (schema 7) — full shape of every entity, read this first
+  61  STORAGE — const KEY='quiz-state-v6', debounced save/load
+ 211  SOUND (MY_SOUNDS block just below)
+ 251  SMALL HELPERS     271  STYLED DIALOGS    306  TRASH & UNDO
+ 371  FULLSCREEN & TABS 395  CLASSES           463  STUDENTS
+ 539  QUESTION BANKS    817  TOPICS            911  QUESTION PICTURES
+1043  QUESTIONS        1195  SCOREBOARD       1212  REPORTS
+1360  BACKUP & TRASH   1477  QUIZ SELECTORS   1501  QUIZ SETTINGS
+1547  QUIZ FLOW        2023  CONFETTI         2035  KEYBOARD
+2047  CLOUD SYNC       2324  INIT
 ```
 
 Line numbers drift as the file changes — grep the banner text (`/* ===== CLASSES =====`)
@@ -59,9 +60,14 @@ rather than trusting them.
 - **Entities carry permanent ids.** Names are labels only, so renaming a class, subject,
   topic, or student must never break scores, history, or references.
 - **Bump `SCHEMA`** and handle migration in `init()` when the stored shape changes.
-  The storage key is `quiz-state-v6`; changing it silently orphans every teacher's data.
+  The storage key stays `quiz-state-v6` whatever `SCHEMA` says; changing the key silently
+  orphans every teacher's data. Backup import compares against `6`, not `SCHEMA`, because
+  `migrateToV6` only understands the pre-v6 shape.
 - The header logo (`assets/gisu-logo.png`) is optional — `game.js` hides the `img` when
   the file is missing. Don't make it required.
+- **Pictures are untrusted too.** A question's `img` can arrive in an imported bank, so it
+  goes through `safeImgUri()` — only a base64 `data:image` URI ever reaches a `src`. Never
+  interpolate it raw; `" onerror="…` and `data:image/svg+xml` are both blocked there.
 - **Treat imported question banks as untrusted input.** Subject, topic and question names
   arrive through Import JSON from other teachers. Anything of theirs that reaches the page
   goes through `esc()` or `textContent` — never straight into `innerHTML`. This is not

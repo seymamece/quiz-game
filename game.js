@@ -1,5 +1,5 @@
 /* ==================================================================
-   DATA MODEL (schema 6)
+   DATA MODEL (schema 7)
    Every entity carries a permanent id. Names are only labels, so
    renaming anything never breaks scores, history or references.
 
@@ -8,13 +8,13 @@
                       scores:{stuId:{pts,ok,no}}, groupState:null|{…}} }
    subjects { subjId:{id,name, grades:{ "7": { topics:{
                 topicId:{id,name,
-                         questions:{easy|medium|hard:[{id,q,a}]},
+                         questions:{easy|medium|hard:[{id,q,a,img?}]},
                          usedQ:{easy|medium|hard:[qId]}} }}}} }
    attempts [ {ts, clsId,clsName, gradeKey, subjId,subjName,
                topicId,topicName, level, stuId,stuName,
                qId,qText, correct} ]        ids link, names are a fallback
 ================================================================== */
-const SCHEMA = 6;
+const SCHEMA = 7;
 const LVL = { easy:{name:'Easy',pts:10,color:'#2e8fb5'}, medium:{name:'Medium',pts:20,color:'#e0a422'}, hard:{name:'Hard',pts:30,color:'#d95f83'} };
 const LEVELS = ['easy','medium','hard'];
 const emptyQ = () => ({ easy:[], medium:[], hard:[] });
@@ -908,6 +908,138 @@ function renderTopics(){
   renderQuestions();
 }
 
+/* ================== QUESTION PICTURES ==================
+   A diagram copied out of a textbook is often several megabytes, and it has to
+   live in this browser's storage next to every class, question and score — and
+   travel inside the sync payload. So everything is shrunk on the way in.
+
+   Pictures are stored in the question itself as a data URI rather than as
+   files or in cloud storage, which keeps the app working with no connection:
+   a picture question in a classroom with the wifi down still shows its
+   picture. The cost is size, which is why the budget is shown to the teacher
+   in the Backup tab. */
+
+const IMG_MAX_PX=1000;               // long edge; a projector never needs more
+const IMG_BUDGET=3*1024*1024;        // warn well before the browser's own limit
+
+function fmtBytes(n){
+  if(n<1024) return n+' B';
+  if(n<1024*1024) return Math.round(n/1024)+' KB';
+  return (n/1024/1024).toFixed(1)+' MB';
+}
+function dataUriBytes(uri){
+  if(typeof uri!=='string'||!uri) return 0;
+  const i=uri.indexOf(',');
+  return i<0 ? uri.length : Math.floor((uri.length-i-1)*3/4);
+}
+function picturesBytes(){
+  let n=0;
+  Object.values(S.subjects).forEach(s=>Object.values(s.grades||{}).forEach(g=>
+    Object.values(g.topics||{}).forEach(t=>LEVELS.forEach(l=>
+      (t.questions[l]||[]).forEach(q=>{ n+=dataUriBytes(q.img); })))));
+  return n;
+}
+
+/* Downscale, then keep whichever encoding comes out smaller. Line drawings
+   from a worksheet stay crisp as PNG; photographs shrink far more as JPEG.
+   Trying both costs milliseconds and avoids guessing wrong either way. */
+function shrinkImage(fileOrBlob){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(fileOrBlob);
+    const im=new Image();
+    im.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=im.naturalWidth, h=im.naturalHeight;
+      if(!w||!h){ reject(new Error('that file is not a picture')); return; }
+      const scale=Math.min(1, IMG_MAX_PX/Math.max(w,h));
+      w=Math.max(1,Math.round(w*scale)); h=Math.max(1,Math.round(h*scale));
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const ctx=c.getContext('2d');
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);      // JPEG cannot hold transparency
+      ctx.drawImage(im,0,0,w,h);
+      let best=null;
+      [['image/jpeg',0.82],['image/png',undefined]].forEach(([type,q])=>{
+        try{ const d=c.toDataURL(type,q); if(d&&d.indexOf('data:image')===0&&(!best||d.length<best.length)) best=d; }
+        catch(e){}
+      });
+      if(best) resolve(best); else reject(new Error('this browser could not convert it'));
+    };
+    im.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('that file is not a picture')); };
+    im.src=url;
+  });
+}
+
+/* A picture can arrive inside an imported question bank, so its value is
+   untrusted like every other field from a colleague's file. Only a base64
+   data:image URI is ever allowed into a src attribute — anything else, such as
+   `" onerror="…`, is dropped rather than escaped and hoped for. */
+const IMG_URI_RE=/^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=]+$/i;
+function safeImgUri(uri){ return (typeof uri==='string'&&IMG_URI_RE.test(uri))?uri:''; }
+function imgTag(uri,className){
+  const u=safeImgUri(uri);
+  return u?`<img class="${className}" src="${esc(u)}" alt="Picture for this question">`:'';
+}
+
+let qImg=null;                       // picture for the question being added or edited
+
+function renderQImg(){
+  const has=document.getElementById('qImgHas'), empty=document.getElementById('qImgEmpty');
+  if(!has||!empty) return;
+  if(qImg){
+    document.getElementById('qImgPreview').src=qImg;
+    document.getElementById('qImgSize').textContent=fmtBytes(dataUriBytes(qImg));
+    has.style.display=''; empty.style.display='none';
+  }else{
+    document.getElementById('qImgPreview').removeAttribute('src');
+    has.style.display='none'; empty.style.display='';
+  }
+}
+
+async function acceptImage(fileOrBlob){
+  try{
+    const uri=await shrinkImage(fileOrBlob);
+    const size=dataUriBytes(uri);
+    if(picturesBytes()+size>IMG_BUDGET){
+      if(!await uiConfirm('Your pictures are using '+fmtBytes(picturesBytes())+' already.\n'
+        +'Adding more may fill up what this browser will store, and very large question banks sync slowly.\n\nAdd it anyway?')) return;
+    }
+    qImg=uri; renderQImg();
+    showToast('Picture ready ✔ '+fmtBytes(size)+' — press Add Question to save it');
+  }catch(e){ uiAlert('Could not use that picture.\n'+(e.message||'')); }
+}
+
+function wireQuestionPictures(){
+  const zone=document.getElementById('qImgZone'); if(!zone) return;
+  document.getElementById('qImgPick').onclick=()=>document.getElementById('qImgFile').click();
+  document.getElementById('qImgFile').onchange=function(){
+    const f=this.files[0]; this.value='';
+    if(f) acceptImage(f);
+  };
+  document.getElementById('qImgDrop').onclick=()=>{ qImg=null; renderQImg(); };
+
+  zone.addEventListener('dragover',e=>{ e.preventDefault(); zone.classList.add('dragging'); });
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragging'));
+  zone.addEventListener('drop',e=>{
+    e.preventDefault(); zone.classList.remove('dragging');
+    const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(f) acceptImage(f);
+  });
+
+  /* Paste anywhere on the Question Banks tab, not only inside the box — a
+     teacher who has just copied a figure should not have to find a target. */
+  document.addEventListener('paste',e=>{
+    const card=document.getElementById('qCard');
+    if(!card||card.style.display==='none') return;
+    const items=(e.clipboardData&&e.clipboardData.items)||[];
+    for(let i=0;i<items.length;i++){
+      if(items[i].type&&items[i].type.indexOf('image/')===0){
+        const f=items[i].getAsFile();
+        if(f){ e.preventDefault(); acceptImage(f); return; }
+      }
+    }
+  });
+}
+
 /* ================== QUESTIONS ================== */
 let qLvl='easy', editId=null, qSel=new Set();
 document.querySelectorAll('#qTabs button').forEach(b=>{
@@ -922,6 +1054,7 @@ function cancelEdit(){
   document.getElementById('qAns').value='';
   document.getElementById('qAdd').textContent='Add Question';
   document.getElementById('qCancel').style.display='none';
+  qImg=null; renderQImg();
 }
 document.getElementById('qCancel').onclick=()=>{ cancelEdit(); renderQuestions(); };
 document.getElementById('qAdd').onclick=()=>{
@@ -931,9 +1064,14 @@ document.getElementById('qAdd').onclick=()=>{
   if(!q) return;
   if(editId){
     const item=t.questions[qLvl].find(x=>x.id===editId);
-    if(item){ item.q=q; item.a=a; }        // id kept → report history stays attached
+    if(item){                              // id kept → report history stays attached
+      item.q=q; item.a=a;
+      if(qImg) item.img=qImg; else delete item.img;
+    }
   }else{
-    t.questions[qLvl].push({ id:newId('q'), q, a });
+    const item={ id:newId('q'), q, a };
+    if(qImg) item.img=qImg;
+    t.questions[qLvl].push(item);
   }
   cancelEdit(); save(); renderBank();
 };
@@ -975,6 +1113,11 @@ function renderQuestions(){
     const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=qSel.has(it.id); cb.title='Select';
     cb.onclick=ev=>{ ev.stopPropagation(); cb.checked?qSel.add(it.id):qSel.delete(it.id); renderSelBar(list.length); };
     d.appendChild(cb);
+    if(it.img){
+      const th=document.createElement('img'); th.className='qThumb'; th.src=it.img;
+      th.alt='Picture attached to this question';
+      d.appendChild(th);
+    }
     const body=document.createElement('div'); body.className='qBody';
     body.innerHTML=`<strong>${i+1}.</strong> ${esc(it.q)} ${it.a?`<small>Answer: ${esc(it.a)}</small>`:''}`;
     d.appendChild(body);
@@ -984,6 +1127,7 @@ function renderQuestions(){
       editId=it.id;
       document.getElementById('qText').value=it.q;
       document.getElementById('qAns').value=it.a||'';
+      qImg=it.img||null; renderQImg();
       document.getElementById('qAdd').textContent='💾 Update';
       document.getElementById('qCancel').style.display='inline-block';
       document.getElementById('qText').focus();
@@ -1256,7 +1400,11 @@ document.getElementById('bakFile').onchange=function(){
       let data=d.data||d;
       if(!data.classes||!data.subjects){ uiAlert('This file is not a valid quiz backup.'); return; }
       if(!await uiConfirm('Importing will REPLACE everything on this computer (classes, students, questions, scores). Continue?')) return;
-      if(!data.schemaVersion || data.schemaVersion<SCHEMA){
+      /* migrateToV6 only understands the pre-v6, name-keyed format. Compare
+         against 6 and not SCHEMA: once SCHEMA moves past 6, a v6 backup would
+         otherwise be fed through it and come out wrecked. Shapes from v6
+         onwards only ever gain optional fields, so they load as they are. */
+      if(!data.schemaVersion || data.schemaVersion<6){
         data.subjects=normaliseOldSubjects(data.subjects,data.classes);
         data=migrateToV6(data);
       }
@@ -1541,7 +1689,9 @@ function startQuestion(lvl){
   const q=pickQuestion(t,lvl);
   if(!q){
     stage.innerHTML=`<div class="stageLabel">"${esc(t.name)}" has no ${LVL[lvl].name.toLowerCase()} questions yet 😅<br>You can add some in the "Question Banks" tab.</div>
-      <button class="btn" onclick="afterStudentChosen()">← Back</button>`;
+      <button class="btn" id="noQBack">← Back</button>`;
+    const back=document.getElementById('noQBack');
+    if(back) back.onclick=afterStudentChosen;   // handlers belong in JS, not in the markup
     return;
   }
   current.question=q;
@@ -2199,6 +2349,7 @@ document.getElementById('soundBtn').onclick=function(){
   if(pruneTrash()|pruneAttempts()) save();
   document.getElementById('soundBtn').textContent=S.sound?'🔊':'🔇';
   initQuizSettings();
+  wireQuestionPictures();          // once only: it attaches a document-level paste listener
   renderClasses(); renderBank(); renderSelectors(); showIdle();
   renderCloud();
   handleAuthRedirect();
