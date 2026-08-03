@@ -1903,8 +1903,58 @@ function showGroupBoard(){
     </div>`).join('');
   stage.innerHTML=`<div class="stageLabel">Team <b style="color:var(--yellow-deep)">${g.turn+1}</b>'s turn — get ready!</div>
     <div class="groupGrid">${cards}</div>
-    <button class="pickBtn" id="goGroup">🎲 Pick Answerer & Question</button>`;
+    <button class="pickBtn" id="goGroup">🎲 Pick Answerer & Question</button>
+    <div class="row" style="justify-content:center;margin-top:12px">
+      <button class="btn ghost small" id="endGroup">🏁 Finish &amp; See Winner</button>
+    </div>`;
   document.getElementById('goGroup').onclick=pickGroupAnswerer;
+  document.getElementById('endGroup').onclick=finishGroupGame;
+}
+
+/* The end of the game. Teams are re-drawn every time and the points are not
+   carried anywhere, so this screen is the whole reward — it just has to name
+   the winners clearly and be worth cheering at. */
+function finishGroupGame(){
+  const c=cls(), g=c.groupState;
+  if(!g) return showIdle();
+  clearTimers();
+  const best=Math.max(...g.scores);
+  const champs=g.scores.map((s,i)=>({s,i})).filter(x=>x.s===best).map(x=>x.i);
+  const ranked=g.scores.map((s,i)=>({s,i})).sort((a,b)=>b.s-a.s);
+
+  let head;
+  if(best===0){
+    head=`<div class="resultBig">🤷</div>
+      <div class="resultTxt" style="color:var(--dim)">No points scored yet!</div>`;
+  }else if(champs.length===1){
+    head=`<div class="resultBig">🏆</div>
+      <div class="resultTxt" style="color:var(--green-deep)">Team ${champs[0]+1} wins!</div>
+      <div class="ptTag">${best} point${best===1?'':'s'}</div>`;
+    sndCorrect(); fireConfetti();
+  }else{
+    head=`<div class="resultBig">🤝</div>
+      <div class="resultTxt" style="color:var(--yellow-deep)">It's a tie!</div>
+      <div class="ptTag">Team ${champs.map(i=>i+1).join(' and Team ')} — ${best} point${best===1?'':'s'} each</div>`;
+    sndCorrect(); fireConfetti();
+  }
+
+  const cards=ranked.map(({s,i})=>`
+    <div class="groupCard ${champs.indexOf(i)>=0&&best>0?'active':''}">
+      <h4>${champs.indexOf(i)>=0&&best>0?'🏆 ':''}Team ${i+1}</h4>
+      <div class="gpts">${s}</div>
+      <div class="members">${g.teams[i].map(id=>esc(stuName(c,id))).join('<br>')}</div>
+    </div>`).join('');
+
+  stage.innerHTML=`${head}
+    <div class="groupGrid" style="margin-top:16px">${cards}</div>
+    <div class="row" style="justify-content:center;margin-top:14px">
+      <button class="pickBtn" id="againGroup">🎲 New Teams</button>
+      <button class="btn ghost small" id="backGroup">Back to the board</button>
+    </div>`;
+  document.getElementById('againGroup').onclick=()=>{
+    c.groupState=null; save(); showIdle();      // fresh teams, as they change every game
+  };
+  document.getElementById('backGroup').onclick=showGroupBoard;
 }
 function pickGroupAnswerer(){
   const c=cls(), g=c.groupState;
