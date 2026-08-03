@@ -219,6 +219,21 @@ test('only a real data:image URI is allowed into a src attribute', () => {
   return leaked.length === 0 || 'these reached the page: ' + leaked.join(' | ');
 });
 
+test('a question picture is actually rendered where it is needed', () => {
+  // Defining the validator is not the same as using it. It was defined,
+  // committed and unused: pictures saved fine and never appeared in a quiz.
+  const places = [
+    ['the individual/group question screen', /^function startQuestion[\s\S]*?\n\}/m, /imgTag\(q\.img/],
+    ['the Beat the Clock screen', /^function beatNextQuestion[\s\S]*?\n\}/m, /imgTag\(pick\.q\.img/],
+    ['the question list thumbnail', /^function renderQuestions[\s\S]*?\n\}/m, /safeImgUri\(it\.img\)/]
+  ];
+  const missing = places.filter(([, fn, use]) => {
+    const m = src.match(fn);
+    return !m || !use.test(m[0]);
+  }).map(p => p[0]);
+  return missing.length === 0 || 'pictures would not show on: ' + missing.join('; ');
+});
+
 test('a v6 backup is not run through the pre-v6 migration', () => {
   const m = src.match(/if\(!data\.schemaVersion \|\| data\.schemaVersion<(\w+)\)/);
   if (!m) return 'the backup import version check is gone';

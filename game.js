@@ -1114,7 +1114,7 @@ function renderQuestions(){
     cb.onclick=ev=>{ ev.stopPropagation(); cb.checked?qSel.add(it.id):qSel.delete(it.id); renderSelBar(list.length); };
     d.appendChild(cb);
     if(it.img){
-      const th=document.createElement('img'); th.className='qThumb'; th.src=it.img;
+      const th=document.createElement('img'); th.className='qThumb'; th.src=safeImgUri(it.img);
       th.alt='Picture attached to this question';
       d.appendChild(th);
     }
@@ -1711,6 +1711,7 @@ function startQuestion(lvl){
       </svg>
       <div class="tNum" id="tNum">${current.total}</div>
     </div>
+    ${imgTag(q.img,'stageImg')}
     <div class="questionText">${esc(qStem(q.q))}</div>
     <div id="answerArea"></div>
     <div class="answerBox" id="ansBox"></div>
@@ -1983,6 +1984,7 @@ function beatNextQuestion(){
   current.level=pick.l; current.question=pick.q;
   stage.innerHTML=`
     <div class="stageLabel">⏱️ <span id="beatTime">${current.beat.timeLeft}</span>s left · <b style="color:var(--green-deep)">${current.beat.correct} correct</b></div>
+    ${imgTag(pick.q.img,'stageImg')}
     <div class="questionText">${esc(qStem(pick.q.q))}</div>
     <div id="answerArea"></div>
     <div class="answerBox" id="ansBox"></div>
