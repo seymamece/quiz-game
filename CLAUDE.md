@@ -108,8 +108,13 @@ banks as untrusted input, typed-answer matching, and whether names can reach `in
 Add a case to it whenever you touch those. It is not a full suite — everything else still
 needs a browser: open `index.html` and exercise the flow. Two gotchas learned the hard way:
 
-- Browser caching will serve a stale `style.css` / `game.js` and make a correct fix look
-  broken. Hard-reload, or serve over `python -m http.server` and add a cache-busting query.
+- **After editing `style.css`, `sync.js`, `supabase-config.js` or `game.js`, update the
+  `?v=` stamps in `index.html`.** GitHub Pages serves everything with `max-age=600` and the
+  edge caches age independently, so without it a teacher can get a fresh `index.html` beside
+  a stale `game.js` — the new markup renders and none of its handlers exist, which looks
+  exactly like a broken feature. `node tools/selftest.js` fails with the value to paste in.
+- Browser caching will still serve a stale file locally and make a correct fix look broken.
+  Hard-reload, or serve over `python -m http.server` with a cache-busting query.
 - Import the demo bank (`demo/demo-question-banks.json`) from the Question Banks tab to get
   playable content without typing questions by hand.
 

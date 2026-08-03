@@ -157,6 +157,39 @@ test('the vendored confetti is the browser build', () => {
   return true;
 });
 
+/* ---------- cache busting ----------
+   GitHub Pages serves everything with max-age=600 and the edge caches age
+   independently, so a browser can hold a fresh index.html next to a ten-minute-
+   old game.js. That mismatch is invisible and looks like a broken feature: the
+   new markup renders, none of its handlers exist. The ?v= stamp makes a new
+   deploy a new URL, so the pair can never be mixed. */
+
+const VERSIONED = ['style.css', 'supabase-config.js', 'sync.js', 'game.js'];
+
+function assetVersion() {
+  const h = require('crypto').createHash('sha256');
+  // normalise line endings: a clone may check out CRLF where the repo holds LF
+  for (const a of VERSIONED) h.update(fs.readFileSync(path.join(__dirname, '..', a), 'utf8').replace(/\r\n/g, '\n'));
+  return h.digest('hex').slice(0, 8);
+}
+
+test('every local script and stylesheet carries a ?v= stamp', () => {
+  const missing = VERSIONED.filter(a => !new RegExp('(src|href)="' + a.replace('.', '\\.') + '\\?v=').test(indexHtml));
+  return missing.length === 0 || 'no cache-busting stamp on: ' + missing.join(', ');
+});
+
+test('the ?v= stamp matches what the files actually contain', () => {
+  const want = assetVersion();
+  const stamps = [...indexHtml.matchAll(/(?:src|href)="[^"]+\?v=([0-9a-f]+)"/g)].map(m => m[1]);
+  const wrong = [...new Set(stamps)].filter(s => s !== want);
+  if (wrong.length) {
+    return 'index.html says v=' + wrong.join('/') + ' but the files hash to ' + want +
+      '. Update the ?v= stamps in index.html to ' + want + ', or teachers will keep running ' +
+      'a half-updated app after this deploy.';
+  }
+  return stamps.length > 0 || 'no stamps found at all';
+});
+
 /* ---------- pictures attached to questions ----------
    A picture can arrive inside an imported bank, so its value is as untrusted
    as the question text around it. */
@@ -200,7 +233,8 @@ test('a v6 backup is not run through the pre-v6 migration', () => {
 /* ---------- cloud sync wiring ---------- */
 
 test('sync.js and its config load before game.js', () => {
-  const order = [...indexHtml.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);
+  // strip the ?v= cache-busting stamp before comparing names
+  const order = [...indexHtml.matchAll(/<script[^>]*src="([^"?]+)/g)].map(m => m[1]);
   const i = n => order.indexOf(n);
   if (i('sync.js') < 0) return 'sync.js is not loaded';
   if (i('supabase-config.js') < 0) return 'supabase-config.js is not loaded';
