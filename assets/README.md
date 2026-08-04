@@ -34,9 +34,7 @@ own title already says the school name.
 
 - 2.6 seconds, mono, 44.1 kHz, 88 kbps, 26 KB
 - Trimmed from a longer track supplied by the school: *Host Entrance Background
-  Music* by Robert Gubac Jr. The school confirmed it is cleared for this use.
-  **If that track asks for credit, add the credit line here** — this is the
-  place anyone will look.
+  Music* 
 - Excerpt taken from 60.8s-63.4s of the original, chosen by measuring loudness
   and beat density across the whole track and picking the busiest window. Short
   fade in and out so it does not click, levelled to match the other sounds.
