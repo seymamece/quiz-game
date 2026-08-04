@@ -30,6 +30,26 @@ own title already says the school name.
   `index.html` and the CSS selector stays the same.
 - **Keep it small:** under ~100 KB. It loads on every open.
 
+## `spin.mp3` — the music while student names are spinning
+
+- 2.6 seconds, mono, 44.1 kHz, 88 kbps, 26 KB
+- Trimmed from a longer track supplied by the school: *Host Entrance Background
+  Music* by Robert Gubac Jr. The school confirmed it is cleared for this use.
+  **If that track asks for credit, add the credit line here** — this is the
+  place anyone will look.
+- Excerpt taken from 60.8s-63.4s of the original, chosen by measuring loudness
+  and beat density across the whole track and picking the busiest window. Short
+  fade in and out so it does not click, levelled to match the other sounds.
+
+`MY_SOUNDS.spin` in `game.js` points at this path rather than embedding the
+audio. That keeps `game.js` about 32 KB smaller and means the music can be
+swapped by replacing this one file. The browser fetches it on the first spin
+and caches it after that.
+
+Note for anyone regenerating sounds: `spin` was removed from the `SOUNDS` dict
+in `tools/make_sounds.py` on purpose, so running that script rewrites the other
+sounds without silently putting the old synthesized tune back.
+
 ### The tab icon
 
 `favicon-32.png` and `favicon-180.png` are generated from this same emblem and

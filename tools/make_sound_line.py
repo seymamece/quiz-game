@@ -7,7 +7,7 @@ Usage:
     python make_sound_line.py buzz.wav wrong
 
 The second argument is which sound it replaces:
-    correct | wrong | timeUp | tick | pick
+    spin | correct | wrong | timeUp | tick | pick
 
 It prints a line like:
     correct: "data:audio/mpeg;base64,SUQzBAAA....",
@@ -16,6 +16,11 @@ replacing the existing line for that sound.
 
 Tip: keep clips under ~2 seconds. Every 100 KB of audio adds roughly
 135 KB to game.js, because base64 text is bigger than the raw file.
+
+For anything longer, prefer a file over an embedded string: drop it in assets/
+and set the value to its path, e.g.  spin: "assets/spin.mp3"  — the browser
+fetches it once and caches it, and game.js stays small. That is how "spin" is
+set up today.
 """
 
 import base64
@@ -30,7 +35,7 @@ MIME = {
     ".aac": "audio/aac",
     ".webm": "audio/webm",
 }
-KEYS = ("correct", "wrong", "timeUp", "tick", "pick")
+KEYS = ("spin", "correct", "wrong", "timeUp", "tick", "pick")
 
 
 def main() -> int:

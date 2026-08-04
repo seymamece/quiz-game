@@ -182,8 +182,12 @@ def make_wrong():
 
 
 # ---------------------------------------------------------------- build
+# "spin" is deliberately not in here. It now points at assets/spin.mp3 instead
+# of an embedded tune, and regenerating it would silently overwrite that line in
+# game.js with the synthesized carnival music again. make_spin() is kept below
+# in case anyone wants it back — put "spin": (make_spin, 88) here and set
+# MY_SOUNDS.spin back to an embedded value.
 SOUNDS = {
-    "spin": (make_spin, 88),
     "tick": (make_tick, 64),
     "correct": (make_correct, 88),
     "wrong": (make_wrong, 80),
