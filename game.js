@@ -218,12 +218,12 @@ const MY_SOUNDS = {
 };
 const SOUND_VOLUME = 0.7;          // 0.0 = silent, 1.0 = full volume
 const _audioCache={};
-function playFile(src,rate){
+function playFile(src,rate,loop){
   if(!S.sound||!src) return false;
   try{
     let a=_audioCache[src];
     if(!a){ a=new Audio(src); a.volume=SOUND_VOLUME; _audioCache[src]=a; }
-    a.playbackRate=rate||1; a.currentTime=0; a.play().catch(()=>{});
+    a.loop=!!loop; a.playbackRate=rate||1; a.currentTime=0; a.play().catch(()=>{});
     return true;
   }catch(e){ return false; }
 }
@@ -244,7 +244,10 @@ const sndWrong  =()=>{ if(playFile(MY_SOUNDS.wrong))return;   tone(200,0,.5,'saw
 const sndTimeUp =()=>{ if(playFile(MY_SOUNDS.timeUp))return;  [440,440,330].forEach((f,i)=>tone(f,i*.18,.15,'square',.15)); };
 let _tock=false;
 const sndTick=()=>{ _tock=!_tock; if(playFile(MY_SOUNDS.tick,_tock?1:0.88))return; tone(_tock?900:760,0,.06,'square',.08); };
-const sndSpinStart=()=>{ if(!playFile(MY_SOUNDS.spin)) tone(660,0,.05,'square',.06); };
+/* Loops on purpose. The draw runs about 3.5s for the name and another 2.4s for
+   the level wheel, and longer still when the student picks the level by hand,
+   so no fixed-length clip covers it. It is stopped when the question appears. */
+const sndSpinStart=()=>{ if(!playFile(MY_SOUNDS.spin,1,true)) tone(660,0,.05,'square',.06); };
 const sndSpinStop =()=>stopFile(MY_SOUNDS.spin);
 const sndPick=()=>{ if(MY_SOUNDS.spin) return; tone(600+Math.random()*300,0,.05,'square',.06); };
 
@@ -378,6 +381,7 @@ document.addEventListener('fullscreenchange',()=>{
 });
 document.querySelectorAll('nav button').forEach(b=>{
   b.onclick=()=>{
+    sndSpinStop();          // the draw music loops; leaving the quiz must silence it
     document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
     document.querySelectorAll('section').forEach(s=>s.classList.remove('show'));
@@ -1593,7 +1597,8 @@ function spinNames(ids,winnerId,then,steps){
     sndPick(); i++;
     if(i<total){ delay*=1.13; current.anim=setTimeout(spin,delay); }
     else{
-      sndSpinStop();
+      /* The music keeps running here: the level wheel is still to come and
+         cutting it the moment the name lands left an odd silence. */
       el.textContent=stuName(c,winnerId); el.classList.add('landed');
       const u=document.getElementById('uLine'); if(u) u.classList.add('showU');
       current.anim=setTimeout(then,600);
@@ -1684,6 +1689,7 @@ function runTimer(){
   },1000);
 }
 function startQuestion(lvl){
+  sndSpinStop();                 // the draw is over; the question needs quiet
   current.level=lvl; current.paused=false;
   const t=quizTopic();
   const q=pickQuestion(t,lvl);
@@ -2389,6 +2395,7 @@ async function doSync(opts){
 
 document.getElementById('soundBtn').onclick=function(){
   S.sound=!S.sound; this.textContent=S.sound?'🔊':'🔇'; save();
+  if(!S.sound) sndSpinStop();   // muting has to silence the loop already playing
 };
 (async function init(){
   await load();

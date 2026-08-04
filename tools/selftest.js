@@ -194,6 +194,25 @@ test('the ?v= stamp matches what the files actually contain', () => {
   return stamps.length > 0 || 'no stamps found at all';
 });
 
+test('the looping draw music can always be silenced', () => {
+  // It loops now, so unlike a fixed clip it never stops on its own. Every way
+  // out of a draw has to stop it or it plays over the next lesson.
+  if (!/playFile\(MY_SOUNDS\.spin,\s*1,\s*true\)/.test(src)) return 'the draw music no longer loops';
+  const needs = [
+    ['the question screen', /^function startQuestion[\s\S]*?\n\}/m],
+    ['going back to idle', /^function showIdle\(\)[\s\S]*?\n\}/m]
+  ];
+  const missing = needs.filter(([, re]) => { const m = src.match(re); return !m || !/sndSpinStop\(\)/.test(m[0]); })
+    .map(n => n[0]);
+  if (missing.length) return 'nothing stops it on: ' + missing.join('; ');
+  // switching tabs and muting are the two ways to leave a draw running
+  const nav = src.match(/document\.querySelectorAll\('nav button'\)\.forEach[\s\S]*?\n\}\);/);
+  if (!nav || !/sndSpinStop\(\)/.test(nav[0])) return 'switching tabs would leave the music playing';
+  const mute = src.match(/getElementById\('soundBtn'\)\.onclick[\s\S]*?\n\};/);
+  if (!mute || !/sndSpinStop\(\)/.test(mute[0])) return 'muting would not silence a loop already playing';
+  return true;
+});
+
 test('the tab icon is declared and the files are there', () => {
   const refs = [...indexHtml.matchAll(/<link[^>]*rel="(?:icon|apple-touch-icon)"[^>]*href="([^"?]+)/g)].map(m => m[1]);
   if (!refs.length) return 'no favicon declared — the browser tab falls back to a grey globe';
