@@ -52,23 +52,45 @@ sounds without silently putting the old synthesized tune back.
 
 ### The tab icon
 
-`favicon-32.png` and `favicon-180.png` are generated from this same emblem and
-declared in `index.html`. If you replace `gisu-logo.png`, regenerate them too —
-scaling the header logo down to 16px in the browser comes out muddy:
+`favicon-16.png`, `favicon-32.png` and `favicon-180.png` are the green **Q card**
+mark, not the school emblem. They are declared in `index.html`.
+
+Each size is drawn for its size rather than scaled from one image:
+
+| File | What it shows |
+|---|---|
+| `favicon-16.png` | just the green tile — the card and the letter turn to mush at 16px |
+| `favicon-32.png` | green tile, white card, `Q` |
+| `favicon-180.png` | the same, for a tablet home screen |
+
+Colours, taken from the original design: green `#25984d`, ink `#181611`.
+Proportions follow the 48px reference — corner radius 0.229 of the tile, card
+0.583 x 0.708, border 0.0625, letter 0.34. The letter is set in Segoe UI Black,
+the closest weight available here to the Poppins 800 of the design.
+
+To regenerate after a design change, adjust and run:
 
 ```python
-from PIL import Image
-im = Image.open('gisu-logo.png').convert('RGBA')
-im = im.crop(im.split()[3].getbbox())
-w, h = im.size; side = max(w, h)
-for size, name in [(32, 'favicon-32.png'), (180, 'favicon-180.png')]:
-    c = Image.new('RGBA', (side, side), (0, 0, 0, 0))
-    c.paste(im, ((side - w) // 2, (side - h) // 2), im)
-    c.resize((size, size), Image.LANCZOS).save(name, optimize=True)
+from PIL import Image, ImageDraw, ImageFont
+GREEN=(37,152,77); INK=(24,22,17); SS=8
+def icon(size, card=True):
+    S=size*SS
+    im=Image.new('RGBA',(S,S),(0,0,0,0)); d=ImageDraw.Draw(im)
+    d.rounded_rectangle([0,0,S-1,S-1], radius=int(S*0.229), fill=GREEN)
+    if card:
+        cw,ch=S*0.583,S*0.708; x0,y0=(S-cw)/2,(S-ch)/2
+        d.rounded_rectangle([x0,y0,x0+cw,y0+ch], radius=int(S*0.104),
+                            fill=(255,255,255), outline=INK, width=max(1,int(S*0.0625)))
+        f=ImageFont.truetype("C:/Windows/Fonts/seguibl.ttf", int(S*0.34))
+        l,t,r,b=d.textbbox((0,0),'Q',font=f)
+        d.text(((S-(r-l))/2-l,(S-(b-t))/2-t-S*0.01),'Q',font=f,fill=INK)
+    return im.resize((size,size), Image.LANCZOS)
+for size,card,name in [(180,True,'favicon-180.png'),(32,True,'favicon-32.png'),(16,False,'favicon-16.png')]:
+    icon(size,card).save(name, optimize=True)
 ```
 
-Bump the `?v=` on the two `<link rel="icon">` tags afterwards, or browsers will
-keep showing the old one for a long time.
+Bump the `?v=` on the `<link rel="icon">` tags afterwards, or browsers will keep
+showing the old one for a long time — favicons are cached far longer than pages.
 
 ### Using an SVG instead
 
