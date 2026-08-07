@@ -38,7 +38,10 @@
     <button data-tab="questions">📖 Question Banks</button>
     <button data-tab="board">🏆 Scores</button>
     <button data-tab="reports">📊 Reports</button>
-    <button data-tab="sign in & backup">💾 Sign in & Backup</button>
+    <!-- data-tab is the wiring, not the label: it builds the section id
+         ("tab-" + value) and the switch in game.js keys off it. Rename the
+         text freely; leave the value alone. -->
+    <button data-tab="backup">💾 Sign in &amp; Backup</button>
   </nav>
 
   <!-- ================= QUIZ ================= -->

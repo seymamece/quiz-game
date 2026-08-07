@@ -213,6 +213,26 @@ test('the looping draw music can always be silenced', () => {
   return true;
 });
 
+test('every nav tab points at a section that exists', () => {
+  // data-tab is wiring, not a label: game.js builds the section id from it, so
+  // renaming the value to something friendlier silently kills the tab and
+  // throws on click. Easy to do while tidying the wording.
+  const tabs = [...indexHtml.matchAll(/data-tab="([^"]*)"/g)].map(m => m[1]);
+  const ids = new Set([...indexHtml.matchAll(/id="tab-([^"]*)"/g)].map(m => m[1]));
+  if (!tabs.length) return 'no nav tabs found at all';
+  const broken = tabs.filter(t => !ids.has(t));
+  return broken.length === 0
+    || broken.map(t => `data-tab="${t}" has no <section id="tab-${t}">`).join('; ');
+});
+
+test('images referenced by the README are in the repo', () => {
+  const md = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const local = [...md.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)].map(m => m[1])
+    .filter(u => !/^https?:/.test(u));
+  const missing = local.filter(u => !fs.existsSync(path.join(__dirname, '..', decodeURIComponent(u))));
+  return missing.length === 0 || 'broken image on the front page: ' + missing.join(', ');
+});
+
 test('the tab icon is declared and the files are there', () => {
   const refs = [...indexHtml.matchAll(/<link[^>]*rel="(?:icon|apple-touch-icon)"[^>]*href="([^"?]+)/g)].map(m => m[1]);
   if (!refs.length) return 'no favicon declared — the browser tab falls back to a grey globe';
