@@ -1,4 +1,5 @@
 # 🎲 GISU Quiz Game — End-of-Class Quiz for Teachers
+![Quiz Game](image-1.png)
 
 A classroom quiz game for **Galaxy International School Uganda**. No installation, no server, no account, no build step — download the folder, double-click `index.html`, play. Built for teachers who want to close their lessons with five fun minutes of review.
 
