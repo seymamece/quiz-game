@@ -434,7 +434,7 @@ function renderClasses(){
     const d=document.createElement('div');
     d.className='itemCard'+(S.activeClass===c.id?' sel':'');
     d.innerHTML=`${S.activeClass===c.id?'<span class="selBadge">✔</span>':'<span style="width:18px"></span>'}
-      <span class="name">${esc(c.name)} <span class="gradeBadge">Grade ${esc(c.grade||'?')}</span></span>
+      <span class="name">${esc(c.name)}</span>      
       <span class="meta">${c.students.length} student${c.students.length===1?'':'s'}</span>`;
     d.onclick=()=>{ S.activeClass=c.id; ensureActive(); save(); renderClasses(); };
     d.appendChild(mkIco('🎓','Change grade',async ()=>{
