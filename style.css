@@ -97,8 +97,6 @@ input:focus,select:focus{border-color:var(--yellow-deep)}
 .rateRow .pct{width:78px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
 .rateRow .n{width:70px;text-align:right;color:var(--dim);font-size:.8rem}
 .rpEmpty{color:var(--dim);padding:8px 0}
-.gradeBadge{background:var(--blue);color:var(--ink);border-radius:8px;padding:2px 8px;font-size:.75rem;font-weight:800}
-
 .itemCard{
   background:#fbf9f4;border:2px solid var(--line);
   border-radius:12px;padding:10px 14px;margin-top:8px;

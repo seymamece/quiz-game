@@ -178,6 +178,19 @@ test('every local script and stylesheet carries a ?v= stamp', () => {
   return missing.length === 0 || 'no cache-busting stamp on: ' + missing.join(', ');
 });
 
+test('no asset is loaded twice', () => {
+  // Updating a stamp by pasting a fresh tag instead of editing the old one
+  // leaves two. A duplicate stylesheet is only waste; a duplicate game.js runs
+  // the whole app a second time — every handler bound twice, init run twice.
+  const refs = [...indexHtml.matchAll(/(?:src|href)="([^"?]+)(?:\?[^"]*)?"/g)]
+    .map(m => m[1])
+    .filter(f => VERSIONED.includes(f));
+  const seen = {}, dupes = [];
+  for (const f of refs) { seen[f] = (seen[f] || 0) + 1; }
+  for (const f of Object.keys(seen)) if (seen[f] > 1) dupes.push(`${f} (${seen[f]}x)`);
+  return dupes.length === 0 || 'loaded more than once: ' + dupes.join(', ');
+});
+
 test('the ?v= stamp matches what the files actually contain', () => {
   const want = assetVersion();
   // only the hashed assets — other files (the favicon, say) carry their own stamp
