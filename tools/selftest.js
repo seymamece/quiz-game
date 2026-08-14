@@ -207,6 +207,40 @@ test('the ?v= stamp matches what the files actually contain', () => {
   return stamps.length > 0 || 'no stamps found at all';
 });
 
+test('checking the cloud does not download the whole payload', () => {
+  // The payload is a year of questions, answer records and diagrams — several
+  // megabytes by June. Deciding which way to sync needs a timestamp. Fetching
+  // the payload for that turned every app open into a full download.
+  const syncSrc = fs.readFileSync(path.join(__dirname, '..', 'sync.js'), 'utf8');
+  const meta = syncSrc.match(/async function fetchRemoteMeta[\s\S]*?\n  \}/);
+  if (!meta) return 'fetchRemoteMeta is gone — the check has no cheap path any more';
+  if (/payload/.test(meta[0])) return 'the cheap check asks for the payload again';
+  if (!/fetchRemotePayload/.test(syncSrc)) return 'nothing can fetch the payload when a pull is needed';
+  if (/select=\*/.test(syncSrc)) return 'a select=* is back: that pulls every column, payload included';
+
+  const doSync = src.match(/^async function doSync[\s\S]*?\n\}/m);
+  if (!doSync) return 'doSync is gone';
+  if (!/fetchRemoteMeta\(\)/.test(doSync[0])) return 'doSync no longer uses the cheap check';
+  // the payload fetch must sit inside the pull branch, not before the decision
+  const beforeDecision = doSync[0].slice(0, doSync[0].indexOf('decideSync'));
+  return !/fetchRemotePayload/.test(beforeDecision)
+    || 'the payload is fetched before the decision, so it downloads even when nothing changed';
+});
+
+test('an automatic push waits out the gaps between questions', () => {
+  const m = src.match(/const AUTO_DELAY=(\d+)/);
+  if (!m) return 'AUTO_DELAY is gone';
+  const ms = +m[1];
+  if (ms < 60000) {
+    return `AUTO_DELAY is ${ms}ms. Answers in a lesson arrive further apart than that, so the ` +
+      'timer fires between each one and uploads the entire payload every time — about 25 full ' +
+      'uploads per lesson. Keep it above a minute.';
+  }
+  // ...but something has to send it when the teacher stops for the day
+  return /visibilitychange/.test(src)
+    || 'nothing pushes when the teacher switches away, so a long delay could strand a lesson';
+});
+
 test('the looping draw music can always be silenced', () => {
   // It loops now, so unlike a fixed clip it never stops on its own. Every way
   // out of a draw has to stop it or it plays over the next lesson.

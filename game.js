@@ -2149,13 +2149,30 @@ function cloudBody(){ return document.getElementById('cloudBody'); }
    scores is exactly the step a busy teacher forgets. */
 
 let cloudBusy=false, unlockDeclined=false, syncProblem=null, autoTimer=null;
-const AUTO_DELAY=8000;             // quiet period before an automatic push
+/* Quiet period before an automatic push. This used to be 8 seconds, which
+   sounded responsive and was badly wrong: answers in a lesson arrive further
+   apart than that, so the timer expired between every single one and uploaded
+   the entire payload each time — roughly 25 full uploads per lesson. Two
+   minutes outlasts the gaps between questions, so a lesson produces one upload
+   at the end of it instead. Nothing is at risk in the meantime; localStorage
+   already has it, and an unsent change is pushed on the next open. */
+const AUTO_DELAY=120000;
 
 function scheduleAutoSync(){
   if(!QuizSync.configured()||!QuizSync.currentUser()) return;
   clearTimeout(autoTimer);
   autoTimer=setTimeout(()=>doSync({auto:true}),AUTO_DELAY);
 }
+
+/* Waiting two minutes is fine while the teacher is still working. Switching
+   away is the signal that they are done, so send it then rather than make the
+   other computer wait for a timer that may never finish. */
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='hidden') return;
+  if(!cloudKey||!syncMeta().dirty) return;
+  clearTimeout(autoTimer);
+  doSync({auto:true});
+});
 
 function ago(ts){
   if(!ts) return '';
@@ -2305,7 +2322,7 @@ async function doSync(opts){
   clearTimeout(autoTimer);
   cloudBusy=true; syncProblem=null; renderCloud();
   try{
-    const remote=await QuizSync.fetchRemote();
+    const remote=await QuizSync.fetchRemoteMeta();   // four columns, not the year's work
     const m=syncMeta();
     const hasState=Object.keys(S.classes).length>0||Object.keys(S.subjects).length>0;
     let d=QuizSync.decideSync({hasState,dirty:m.dirty,lastSeen:m.lastSeen},remote);
@@ -2347,7 +2364,8 @@ async function doSync(opts){
       setSyncMeta({lastSeen:at,dirty:false,lastSyncAt:Date.now()});
       if(opts.manual) showToast('Saved to the cloud ✔');
     } else if(d.action==='pull'){
-      const out=await QuizSync.decryptState(cloudKey,remote.payload||{});
+      const payload=await QuizSync.fetchRemotePayload();   // only now is it worth downloading
+      const out=await QuizSync.decryptState(cloudKey,payload||{});
       const data=out.state;
       if(!data.classes||!data.subjects){
         syncProblem='The copy in the cloud is not readable as quiz data. Nothing here was changed.';

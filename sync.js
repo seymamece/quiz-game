@@ -310,13 +310,29 @@
 
   /* ---------- the row ---------- */
 
-  async function fetchRemote() {
+  /* Deciding which way data moves needs four small columns. The payload is the
+     whole year's work — questions, every answer record, every diagram — and by
+     the end of a year that is several megabytes. Fetching it just to compare a
+     timestamp meant every single app open downloaded all of it, almost always
+     to conclude nothing had changed. So the check and the download are separate
+     requests, and the second one only happens when there is really something to
+     pull. */
+  async function myRowUrl(select) {
     const s = await validSession();
     if (!s || !s.user) throw new Error('not signed in');
-    const rows = await authFetch('/rest/v1/quiz_state?select=*&user_id=eq.' + encodeURIComponent(s.user.id), { method: 'GET' });
+    return '/rest/v1/quiz_state?select=' + select + '&user_id=eq.' + encodeURIComponent(s.user.id);
+  }
+
+  async function fetchRemoteMeta() {
+    const rows = await authFetch(await myRowUrl('updated_at,salt,verifier,device'), { method: 'GET' });
     if (!rows || !rows.length) return { exists: false };
     const r = rows[0];
-    return { exists: true, updatedAt: r.updated_at, payload: r.payload, salt: r.salt, verifier: r.verifier, device: r.device };
+    return { exists: true, updatedAt: r.updated_at, salt: r.salt, verifier: r.verifier, device: r.device };
+  }
+
+  async function fetchRemotePayload() {
+    const rows = await authFetch(await myRowUrl('payload'), { method: 'GET' });
+    return rows && rows.length ? rows[0].payload : null;
   }
 
   async function pushRemote(payload, salt, verifier, device) {
@@ -333,7 +349,8 @@
   const api = { newSalt, deriveKey, encrypt, decrypt, isEncrypted, makeVerifier, checkVerifier,
                 encryptState, decryptState, MARK, PBKDF2_ROUNDS,
                 decideSync, configured, signUp, signIn, signOut, currentUser, validSession,
-                fetchRemote, pushRemote, SESSION_KEY, parseAuthHash, consumeAuthRedirect };
+                fetchRemoteMeta, fetchRemotePayload, pushRemote, SESSION_KEY,
+                parseAuthHash, consumeAuthRedirect };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.QuizCrypto = api;
