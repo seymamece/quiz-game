@@ -216,7 +216,9 @@ test('checking the cloud does not download the whole payload', () => {
   if (!meta) return 'fetchRemoteMeta is gone — the check has no cheap path any more';
   if (/payload/.test(meta[0])) return 'the cheap check asks for the payload again';
   if (!/fetchRemotePayload/.test(syncSrc)) return 'nothing can fetch the payload when a pull is needed';
-  if (/select=\*/.test(syncSrc)) return 'a select=* is back: that pulls every column, payload included';
+  // select=* is fine on quiz_attempts — those rows are small and wanted in full.
+  // On quiz_state it would drag the payload back in.
+  if (/quiz_state\?select=\*/.test(syncSrc)) return 'a select=* on quiz_state is back: that pulls the payload';
 
   const doSync = src.match(/^async function doSync[\s\S]*?\n\}/m);
   if (!doSync) return 'doSync is gone';
@@ -225,6 +227,29 @@ test('checking the cloud does not download the whole payload', () => {
   const beforeDecision = doSync[0].slice(0, doSync[0].indexOf('decideSync'));
   return !/fetchRemotePayload/.test(beforeDecision)
     || 'the payload is fetched before the decision, so it downloads even when nothing changed';
+});
+
+test('clearing report history also clears it in the cloud', () => {
+  // Answers are rows in their own table now. Deleting them only on this device
+  // means the next sync pulls them straight back, and the teacher watches
+  // history they deleted reappear with no explanation.
+  const h = src.match(/getElementById\('rpClear'\)\.onclick[\s\S]*?\n\};/);
+  if (!h) return 'the clear-history handler is gone';
+  if (!/S\.attempts=S\.attempts\.filter/.test(h[0])) return 'it no longer clears locally';
+  return /deleteAttempts\(/.test(h[0])
+    || 'it clears locally only, so the rows come back on the next sync';
+});
+
+test('only unsent answers are uploaded', () => {
+  // The point of the separate table: a lesson sends the answers it produced,
+  // not the year. Pushing S.attempts wholesale would undo that.
+  const doSync = src.match(/^async function doSync[\s\S]*?\n\}/m);
+  if (!doSync) return 'doSync is gone';
+  const push = doSync[0].slice(doSync[0].indexOf("d.action==='push'"));
+  if (!/pushAttempts\(/.test(push)) return 'answers are not sent as rows any more';
+  if (!/attemptsSyncedTs/.test(push)) return 'nothing tracks which answers have already gone';
+  return /filter\(a=>a\.ts>=since\)/.test(push)
+    || 'the whole history is uploaded instead of what is new';
 });
 
 test('an automatic push waits out the gaps between questions', () => {
@@ -502,21 +527,39 @@ async function cryptoTests() {
               data: { cid: 'c1', pos: 2, stu: { id: 's3', name: 'Cynthia' } } }]
   });
 
-  await atest('encryptState covers the roster and the answer records', async () => {
+  await atest('encryptState encrypts every roster name', async () => {
     const enc = await C.encryptState(key, sample());
     const roster = enc.classes.c1.students.map(s => s.name);
-    const inAttempts = enc.attempts[0].stuName;
-    if (!roster.every(C.isEncrypted)) return 'a roster name was left readable: ' + roster.join(', ');
-    if (!C.isEncrypted(inAttempts)) return 'attempts[].stuName was left readable: ' + inAttempts;
-    return true;
+    return roster.every(C.isEncrypted) || 'a roster name was left readable: ' + roster.join(', ');
+  });
+
+  await atest('answers are not carried inside the payload', async () => {
+    // They are rows in quiz_attempts now. Leaving them here would put the whole
+    // year back into every upload, which is the thing that table exists to stop.
+    const enc = await C.encryptState(key, sample());
+    return enc.attempts === undefined || 'the payload still carries the answer records';
+  });
+
+  await atest('an answer row keeps its encrypted name and survives the trip', async () => {
+    const enc = await C.encryptState(key, sample());   // encrypts in place first
+    void enc;
+    const a = { id: 'a_1', ts: 1735689600000, clsId: 'c1', clsName: '7-A', gradeKey: '7',
+                subjId: 'u1', subjName: 'Science', topicId: 't1', topicName: 'Body',
+                level: 'medium', stuId: 's1', stuName: await C.encrypt(key, 'Amina'),
+                qId: 'q1', qText: 'Which organ?', correct: true };
+    const row = C.attemptToRow(a, 'user-uuid');
+    if (/Amina/.test(JSON.stringify(row))) return 'the name would be sent readable';
+    if (row.stu_name !== a.stuName) return 'the ciphertext was altered on the way out';
+    const back = C.rowToAttempt(row);
+    const lost = Object.keys(a).filter(k => JSON.stringify(a[k]) !== JSON.stringify(back[k]));
+    if (lost.length) return 'lost in conversion: ' + lost.join(', ');
+    return (await C.decrypt(key, back.stuName)) === 'Amina' || 'the name no longer decrypts';
   });
 
   await atest('encryptState leaves the question bank readable', async () => {
     const enc = await C.encryptState(key, sample());
     if (enc.subjects.u1.name !== 'Science') return 'subject name was encrypted';
     if (enc.classes.c1.name !== '7-A') return 'class name was encrypted';
-    if (enc.attempts[0].qText !== 'What is water?') return 'question text was encrypted';
-    if (enc.attempts[0].correct !== true) return 'result was altered';
     return true;
   });
 
@@ -549,9 +592,11 @@ async function cryptoTests() {
     return back.state.classes.c1.students[0].name === 'Amina' || 'name mangled by a second pass';
   });
 
-  await atest('decryptState restores everything except the trash', async () => {
+  await atest('decryptState restores everything except trash and answers', async () => {
     const original = sample();
-    const expected = sample(); delete expected.trash;   // dropped on purpose, not lost by accident
+    const expected = sample();
+    delete expected.trash;      // per-device undo, deliberately not synced
+    delete expected.attempts;   // their own table now
     const back = await C.decryptState(key, await C.encryptState(key, original));
     return JSON.stringify(back.state) === JSON.stringify(expected) || 'round trip changed the state';
   });
@@ -620,7 +665,7 @@ async function cryptoTests() {
   await atest('decryptState with the wrong passphrase reports the loss instead of hiding it', async () => {
     const enc = await C.encryptState(key, sample());
     const back = await C.decryptState(wrongKey, enc);
-    if (back.failed !== 3) return 'expected 3 unreadable names, got ' + back.failed;
+    if (back.failed !== 2) return 'expected 2 unreadable names, got ' + back.failed;
     if (back.state.classes.c1.students[0].name !== '???') return 'unreadable name was not flagged';
     return true;
   });

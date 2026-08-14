@@ -38,7 +38,7 @@ tag and `fireConfetti()` swallows the failure silently.
 Jump straight to the right band instead of reading the whole file:
 
 ```
-   1  DATA MODEL (schema 7) — full shape of every entity, read this first
+   1  DATA MODEL (schema 8) — full shape of every entity, read this first
   61  STORAGE — const KEY='quiz-state-v6', debounced save/load
  211  SOUND (MY_SOUNDS block just below)
  251  SMALL HELPERS     271  STYLED DIALOGS    306  TRASH & UNDO
@@ -83,13 +83,21 @@ so the app still runs with no connection.
 is sent (AES-GCM, key derived from a passphrase that is never stored or transmitted). When
 you touch the payload, remember a name lives in more places than the roster:
 
-- `classes[].students[].name` and `attempts[].stuName` — encrypted
+- `classes[].students[].name` — encrypted inside the payload
+- `attempts[].stuName` — encrypted, but the answers travel as rows in the
+  `quiz_attempts` table rather than inside the payload
 - `trash[]` — snapshots *and* labels like `Student "Amina"`; dropped from the payload
   entirely, because it is a per-device 30-day undo
 
 Anything new that can hold a name must be encrypted or excluded, and given a case in the
 self-test. The `service_role` key must never appear in any file the browser can read — it
 ignores RLS; only the `anon` key belongs there.
+
+Answers are the bulk of a teacher's data and only ever grow, so they live in their own
+table and a lesson uploads the handful it produced. Two consequences worth remembering:
+`encryptState` drops `attempts` (put them back and every upload carries the whole year
+again), and clearing report history has to delete server-side too, or the rows return on
+the next sync. Both are covered by the self-test.
 
 **Never commit backup files.** `quiz-backup-*.json` and exported report CSVs contain real
 student names. `.gitignore` covers them — don't add exceptions, and don't paste backup

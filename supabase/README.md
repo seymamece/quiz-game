@@ -36,14 +36,22 @@ and readable, and it is your real safety net.
 2. Paste the whole of [`schema.sql`](schema.sql) and press **Run**.
 3. Confirm it says success. Running it twice is harmless.
 
+It creates two tables. `quiz_state` holds the yearly plan as one document;
+`quiz_attempts` holds one row per answered question, because those are most of
+the data and they only ever get added to — keeping them in the document meant
+re-uploading the whole year every time a child answered.
+
+**If you set this up before the answers table existed, run the file again.**
+Everything is guarded, so nothing already there is touched.
+
 ### 3. Check that Row Level Security is really on
 
 This is the step that matters. The key in the page is public by design; RLS is
 what stops one teacher from reading another's data.
 
 1. **Table Editor → `quiz_state`**. There should be a green **RLS enabled** badge.
-2. **Authentication → Policies**. You should see exactly four policies on
-   `quiz_state`, all for the `authenticated` role, none for `anon`.
+2. **Authentication → Policies**. Four policies on `quiz_state` and four on
+   `quiz_attempts`, all for the `authenticated` role, none for `anon`.
 
 If the badge says RLS is disabled, stop and re-run `schema.sql` — do not put
 real student data in until it is on.

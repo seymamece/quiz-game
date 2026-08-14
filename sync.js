@@ -114,6 +114,10 @@
   async function encryptState(key, state) {
     const copy = JSON.parse(JSON.stringify(state));
     delete copy.trash;
+    /* Answers travel as rows in quiz_attempts, not inside this document. They
+       are most of the data and they only ever grow, so carrying them here meant
+       re-uploading the whole year whenever a child answered a question. */
+    delete copy.attempts;
     for (const [obj, field] of eachName(copy)) {
       if (!isEncrypted(obj[field])) obj[field] = await encrypt(key, obj[field]);
     }
@@ -346,11 +350,81 @@
     return rows && rows[0] ? rows[0].updated_at : null;
   }
 
+  /* ---------- answer records ----------
+     Their own table, because they are most of a teacher's data and they only
+     grow. A lesson sends the answers it produced instead of the whole year.
+
+     The column names are snake_case to match Postgres; the app keeps camelCase,
+     so the two shapes are converted here rather than leaking either into the
+     other. ts crosses as an ISO string so the database can group by date later;
+     the app keeps milliseconds. */
+
+  const ATTEMPT_COLS = [
+    ['id', 'id'], ['clsId', 'cls_id'], ['clsName', 'cls_name'], ['gradeKey', 'grade_key'],
+    ['subjId', 'subj_id'], ['subjName', 'subj_name'], ['topicId', 'topic_id'],
+    ['topicName', 'topic_name'], ['level', 'level'], ['stuId', 'stu_id'],
+    ['stuName', 'stu_name'], ['qId', 'q_id'], ['qText', 'q_text'], ['correct', 'correct']
+  ];
+
+  function attemptToRow(a, userId) {
+    const r = { user_id: userId, ts: new Date(a.ts || Date.now()).toISOString() };
+    ATTEMPT_COLS.forEach(([js, col]) => { r[col] = a[js] === undefined ? null : a[js]; });
+    r.correct = !!a.correct;
+    return r;
+  }
+
+  function rowToAttempt(r) {
+    const a = { ts: Date.parse(r.ts) };
+    ATTEMPT_COLS.forEach(([js, col]) => { a[js] = r[col]; });
+    a.correct = !!r.correct;
+    return a;
+  }
+
+  /* Sent in batches: one enormous request is likelier to be dropped on a school
+     connection than several small ones, and a failed batch can be retried
+     without duplicating anything, because the id is the key. */
+  async function pushAttempts(list, batch) {
+    const s = await validSession();
+    if (!s || !s.user) throw new Error('not signed in');
+    const rows = (list || []).map(a => attemptToRow(a, s.user.id));
+    const size = batch || 400;
+    for (let i = 0; i < rows.length; i += size) {
+      await authFetch('/rest/v1/quiz_attempts?on_conflict=user_id,id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+        body: JSON.stringify(rows.slice(i, i + size))
+      });
+    }
+    return rows.length;
+  }
+
+  async function fetchAttempts(sinceTs) {
+    const s = await validSession();
+    if (!s || !s.user) throw new Error('not signed in');
+    let url = '/rest/v1/quiz_attempts?select=*&user_id=eq.' + encodeURIComponent(s.user.id);
+    if (sinceTs) url += '&ts=gte.' + encodeURIComponent(new Date(sinceTs).toISOString());
+    url += '&order=ts.asc';
+    const rows = await authFetch(url, { method: 'GET' });
+    return (rows || []).map(rowToAttempt);
+  }
+
+  /* Clearing report history has to reach the server too. Without this the rows
+     come straight back the next time another device syncs. */
+  async function deleteAttempts(clsId, sinceTs) {
+    const s = await validSession();
+    if (!s || !s.user) throw new Error('not signed in');
+    let url = '/rest/v1/quiz_attempts?user_id=eq.' + encodeURIComponent(s.user.id);
+    if (clsId) url += '&cls_id=eq.' + encodeURIComponent(clsId);
+    if (sinceTs) url += '&ts=gte.' + encodeURIComponent(new Date(sinceTs).toISOString());
+    await authFetch(url, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+  }
+
   const api = { newSalt, deriveKey, encrypt, decrypt, isEncrypted, makeVerifier, checkVerifier,
                 encryptState, decryptState, MARK, PBKDF2_ROUNDS,
                 decideSync, configured, signUp, signIn, signOut, currentUser, validSession,
                 fetchRemoteMeta, fetchRemotePayload, pushRemote, SESSION_KEY,
-                parseAuthHash, consumeAuthRedirect };
+                parseAuthHash, consumeAuthRedirect,
+                pushAttempts, fetchAttempts, deleteAttempts, attemptToRow, rowToAttempt };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.QuizCrypto = api;

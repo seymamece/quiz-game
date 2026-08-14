@@ -93,3 +93,71 @@ create trigger quiz_state_touch
 alter table public.quiz_state drop constraint if exists quiz_state_payload_size;
 alter table public.quiz_state add constraint quiz_state_payload_size
   check (pg_column_size(payload) < 5 * 1024 * 1024);
+
+-- ============================================================================
+-- ANSWER RECORDS
+--
+-- Kept out of quiz_state.payload on purpose. Answers are about 80% of a
+-- teacher's data by June, and they only ever get appended — so carrying them
+-- inside the one big JSON document meant re-uploading the entire year every
+-- time a child answered a question. Here they are rows, and a lesson sends the
+-- handful it produced.
+--
+-- id is generated on the device and is the reason a retry is harmless: the same
+-- answer can be sent twice and lands once.
+--
+-- stu_name is CIPHERTEXT, exactly as in quiz_state. That is the trade this
+-- design makes: the server can group by topic, level or correctness, because
+-- those are plain, but it can never group by student, because it cannot read
+-- who they are. Per-student reports are therefore worked out on the device.
+-- ============================================================================
+
+create table if not exists public.quiz_attempts (
+  user_id     uuid        not null references auth.users(id) on delete cascade,
+  id          text        not null,          -- generated on the device
+  ts          timestamptz not null,
+  cls_id      text,
+  cls_name    text,
+  grade_key   text,
+  subj_id     text,
+  subj_name   text,
+  topic_id    text,
+  topic_name  text,
+  level       text,
+  stu_id      text,
+  stu_name    text,                          -- encrypted; opaque to the server
+  q_id        text,
+  q_text      text,
+  correct     boolean     not null,
+  primary key (user_id, id)
+);
+
+comment on table public.quiz_attempts is
+  'One row per answered question. Append-only. stu_name is encrypted client-side.';
+comment on column public.quiz_attempts.id is
+  'Generated on the device so a resend is idempotent rather than a duplicate.';
+
+-- Reports filter by class and by period, and sync asks "what is newer than X".
+create index if not exists quiz_attempts_user_ts on public.quiz_attempts (user_id, ts desc);
+create index if not exists quiz_attempts_user_cls_ts on public.quiz_attempts (user_id, cls_id, ts desc);
+
+alter table public.quiz_attempts enable row level security;
+alter table public.quiz_attempts force row level security;
+
+drop policy if exists "read own attempts"   on public.quiz_attempts;
+drop policy if exists "insert own attempts" on public.quiz_attempts;
+drop policy if exists "update own attempts" on public.quiz_attempts;
+drop policy if exists "delete own attempts" on public.quiz_attempts;
+
+create policy "read own attempts" on public.quiz_attempts
+  for select to authenticated using (auth.uid() = user_id);
+
+create policy "insert own attempts" on public.quiz_attempts
+  for insert to authenticated with check (auth.uid() = user_id);
+
+create policy "update own attempts" on public.quiz_attempts
+  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Needed by "clear report history", which removes a class's answers for a period.
+create policy "delete own attempts" on public.quiz_attempts
+  for delete to authenticated using (auth.uid() = user_id);

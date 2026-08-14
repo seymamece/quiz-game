@@ -1,5 +1,5 @@
 /* ==================================================================
-   DATA MODEL (schema 7)
+   DATA MODEL (schema 8)
    Every entity carries a permanent id. Names are only labels, so
    renaming anything never breaks scores, history or references.
 
@@ -10,11 +10,11 @@
                 topicId:{id,name,
                          questions:{easy|medium|hard:[{id,q,a,img?}]},
                          usedQ:{easy|medium|hard:[qId]}} }}}} }
-   attempts [ {ts, clsId,clsName, gradeKey, subjId,subjName,
+   attempts [ {id, ts, clsId,clsName, gradeKey, subjId,subjName,
                topicId,topicName, level, stuId,stuName,
                qId,qText, correct} ]        ids link, names are a fallback
 ================================================================== */
-const SCHEMA = 7;
+const SCHEMA = 8;
 const LVL = { easy:{name:'Easy',pts:10,color:'#2e8fb5'}, medium:{name:'Medium',pts:20,color:'#e0a422'}, hard:{name:'Hard',pts:30,color:'#d95f83'} };
 const LEVELS = ['easy','medium','hard'];
 const emptyQ = () => ({ easy:[], medium:[], hard:[] });
@@ -1239,6 +1239,7 @@ function logAttempt(correct){
   const c=cls(), s=sub(), t=quizTopic();
   if(!S.attempts) S.attempts=[];
   S.attempts.push({
+    id:newId('a'),          // stable id: lets a resend land once instead of twice
     ts:Date.now(),
     clsId:c?c.id:null, clsName:c?c.name:'',
     gradeKey:c?c.grade:'',
@@ -1359,6 +1360,14 @@ document.getElementById('rpClear').onclick=async ()=>{
   const cut=rpDays>0?Date.now()-rpDays*86400000:0;
   S.attempts=S.attempts.filter(a=>!(a.clsId===rpClassId && a.ts>=cut));
   save(); renderReports();
+  /* Answers live in their own table now, so deleting them here is only half the
+     job: without this they would come straight back on the next sync. */
+  if(QuizSync.configured()&&QuizSync.currentUser()){
+    QuizSync.deleteAttempts(rpClassId,cut).catch(()=>{
+      syncProblem='Cleared here, but the cloud copy could not be reached. Press Sync now while online.';
+      renderCloud();
+    });
+  }
 };
 
 /* ================== BACKUP & TRASH ================== */
@@ -2114,7 +2123,7 @@ document.addEventListener('keydown',e=>{
 const SYNC_META='quiz-sync-meta';
 let cloudKey=null;                 // in memory only, for this tab, until reload
 
-const EMPTY_META={lastSeen:null,dirty:false,lastSyncAt:null};
+const EMPTY_META={lastSeen:null,dirty:false,lastSyncAt:null,attemptsSyncedTs:0};
 function syncMeta(){
   try{ return Object.assign({},EMPTY_META,JSON.parse(localStorage.getItem(SYNC_META)||'null')); }
   catch(e){ return Object.assign({},EMPTY_META); }
@@ -2359,9 +2368,17 @@ async function doSync(opts){
     }
 
     if(d.action==='push'){
-      const enc=await QuizSync.encryptState(cloudKey,S);
+      /* Answers first: they go as their own rows, and only the ones this
+         device has not sent yet. Resending a few is harmless — the id is the
+         key — so the mark is deliberately conservative. */
+      const since=m.attemptsSyncedTs||0;
+      const fresh=(S.attempts||[]).filter(a=>a.ts>=since);
+      if(fresh.length) await QuizSync.pushAttempts(fresh);
+      const newestTs=(S.attempts||[]).reduce((n,a)=>Math.max(n,a.ts||0),since);
+
+      const enc=await QuizSync.encryptState(cloudKey,S);   // no answers inside
       const at=await QuizSync.pushRemote(enc,cloudSalt,cloudVerifier,deviceLabel());
-      setSyncMeta({lastSeen:at,dirty:false,lastSyncAt:Date.now()});
+      setSyncMeta({lastSeen:at,dirty:false,lastSyncAt:Date.now(),attemptsSyncedTs:newestTs});
       if(opts.manual) showToast('Saved to the cloud ✔');
     } else if(d.action==='pull'){
       const payload=await QuizSync.fetchRemotePayload();   // only now is it worth downloading
@@ -2377,9 +2394,19 @@ async function doSync(opts){
       if(!S.trash) S.trash=[]; if(!S.attempts) S.attempts=[];
       if(!S.quiz) S.quiz={mode:'individual',levelPick:'wheel',groups:3,beatSeconds:60};
       Object.values(S.classes).forEach(c=>{ if(!c.absent)c.absent=[]; if(!c.picked)c.picked=[]; if(!c.scores)c.scores={}; });
+      /* Answers are no longer in the payload, so bring them from their own
+         table. A device syncing for the first time gets the lot — a one-off
+         cost on that device, not something every open pays. */
+      try{
+        const rows=await QuizSync.fetchAttempts(0);
+        const seen={}, merged=[];
+        rows.concat(data.attempts||[]).forEach(a=>{ if(a&&a.id&&!seen[a.id]){ seen[a.id]=1; merged.push(a); } });
+        S.attempts=merged.sort((x,y)=>(x.ts||0)-(y.ts||0));
+      }catch(e){ S.attempts=data.attempts||[]; }   // reports can wait; the plan matters more
       undoStack=[];
       ensureActive(); save(); await flushSave();
-      setSyncMeta({lastSeen:remote.updatedAt,dirty:false,lastSyncAt:Date.now()});  // after flushSave, which marks dirty
+      const newestPulled=(S.attempts||[]).reduce((n,a)=>Math.max(n,a.ts||0),0);
+      setSyncMeta({lastSeen:remote.updatedAt,dirty:false,lastSyncAt:Date.now(),attemptsSyncedTs:newestPulled});  // after flushSave, which marks dirty
       document.getElementById('soundBtn').textContent=S.sound?'🔊':'🔇';
       initQuizSettings(); refreshAll(); renderBackupStatus(); renderTrash();
       showToast(out.failed? ('Loaded, but '+out.failed+' name(s) could not be read') : 'Loaded from the cloud ✔');
@@ -2421,6 +2448,10 @@ document.getElementById('soundBtn').onclick=function(){
   if(!S.attempts) S.attempts=[];
   if(S.lastBackup===undefined) S.lastBackup=null;
   if(!S.quiz) S.quiz={mode:'individual',levelPick:'wheel',groups:3,beatSeconds:60};
+  /* schema 8: answers gained an id so they can be synced one row at a time.
+     Older records have none — give them one, or the first sync would upload
+     them again on every device. */
+  S.attempts.forEach(a=>{ if(!a.id) a.id=newId('a'); });
   S.schemaVersion=SCHEMA;
   Object.values(S.classes).forEach(c=>{ if(!c.absent)c.absent=[]; if(!c.picked)c.picked=[]; if(!c.scores)c.scores={}; });
   if(pruneTrash()|pruneAttempts()) save();
