@@ -2215,10 +2215,18 @@ function renderCloud(){
 
   const user=QuizSync.currentUser();
   if(!user){
-    const box=add('<div class="row"><input type="email" id="cloudEmail" placeholder="your school email">'
+    const dom=QuizSync.schoolDomain();
+    const box=add('<div class="row"><button class="btn blue" id="cloudGoogle">Sign in with your school Google account</button></div>'
+      + '<p class="hint" style="margin-top:8px">Use your <b>@'+esc(dom||'school')+'</b> account — the same one you use for school email. '
+      + 'No password to remember here, and you only do this once on each computer.</p>'
+      + '<details style="margin-top:10px"><summary class="hint" style="cursor:pointer">Sign in with a password instead</summary>'
+      + '<div class="row" style="margin-top:8px"><input type="email" id="cloudEmail" placeholder="your school email">'
       + '<input type="password" id="cloudPass" placeholder="password"></div>'
-      + '<div class="row" style="margin-top:8px"><button class="btn" id="cloudIn">Sign in</button></div>'
-      + '<p class="hint" style="margin-top:8px">Accounts are made for you by whoever set up the school\'s cloud sync — ask them if you do not have one yet. You only sign in once on each computer.</p>');
+      + '<div class="row" style="margin-top:8px"><button class="btn ghost small" id="cloudIn">Sign in</button></div>'
+      + '<p class="hint" style="margin-top:6px">Only for accounts made before Google sign-in was set up.</p></details>');
+    box.querySelector('#cloudGoogle').onclick=()=>{
+      try{ QuizSync.signInWithGoogle(); }catch(e){ uiAlert('Could not start Google sign-in.\n'+e.message); }
+    };
     box.querySelector('#cloudIn').onclick=doSignIn;
     box.querySelector('#cloudPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doSignIn(); });
     return;
@@ -2251,6 +2259,7 @@ async function handleAuthRedirect(){
   if(tab) tab.click();
   renderCloud();
   if(r.ok){
+    if(await rejectOutsideAccount(r.user)) return;
     uiAlert('Signed in ✔\nYou are signed in as '+(r.user&&r.user.email||'your account')
       +'.\n\nYour work will now be saved to the cloud on its own.');
     doSync({auto:true});
@@ -2260,12 +2269,26 @@ async function handleAuthRedirect(){
   }
 }
 
+/* The database refuses anyone outside the school domain, so a personal account
+   would sign in and then find every screen empty with no explanation. Catch it
+   here and say so plainly instead. */
+async function rejectOutsideAccount(user){
+  if(!user||QuizSync.isSchoolAccount(user.email)) return false;
+  await QuizSync.signOut();
+  cloudKey=null; cloudSalt=null; cloudVerifier=null;
+  renderCloud();
+  uiAlert('That is not a school account.\n'+(user.email||'')
+    +'\n\nCloud sync is only open to @'+QuizSync.schoolDomain()+' accounts. Sign in with your school one.');
+  return true;
+}
+
 async function doSignIn(){
   const email=(document.getElementById('cloudEmail')||{}).value||'';
   const pass=(document.getElementById('cloudPass')||{}).value||'';
   if(!email.trim()||!pass){ uiAlert('Enter your email and password first.'); return; }
   try{
-    await QuizSync.signIn(email.trim(),pass);
+    const u=await QuizSync.signIn(email.trim(),pass);
+    if(await rejectOutsideAccount(u)) return;
     syncProblem=null; unlockDeclined=false;
     renderCloud();
     showToast('Signed in ✔');

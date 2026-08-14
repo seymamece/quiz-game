@@ -89,6 +89,12 @@ you touch the payload, remember a name lives in more places than the roster:
 - `trash[]` — snapshots *and* labels like `Student "Amina"`; dropped from the payload
   entirely, because it is a per-device 30-day undo
 
+Teachers sign in with the school Google account. Access is restricted to the school
+domain by `is_school_account()` in `supabase/schema.sql`, which every policy checks;
+`SCHOOL_EMAIL_DOMAIN` in `supabase-config.js` is the same value and exists only so the app
+can explain a refusal. The two must agree — the self-test fails if they drift. Match on the
+exact domain, never `like '%@…'`, which also matches `notgisu.ac.ug`.
+
 Anything new that can hold a name must be encrypted or excluded, and given a case in the
 self-test. The `service_role` key must never appear in any file the browser can read — it
 ignores RLS; only the `anon` key belongs there.

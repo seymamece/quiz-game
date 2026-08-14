@@ -51,23 +51,7 @@ alter table public.quiz_state enable row level security;
 -- Applies the policies to the table owner too, so a mistake cannot bypass them.
 alter table public.quiz_state force row level security;
 
-drop policy if exists "read own state"   on public.quiz_state;
-drop policy if exists "insert own state" on public.quiz_state;
-drop policy if exists "update own state" on public.quiz_state;
-drop policy if exists "delete own state" on public.quiz_state;
-
-create policy "read own state" on public.quiz_state
-  for select to authenticated using (auth.uid() = user_id);
-
-create policy "insert own state" on public.quiz_state
-  for insert to authenticated with check (auth.uid() = user_id);
-
-create policy "update own state" on public.quiz_state
-  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "delete own state" on public.quiz_state
-  for delete to authenticated using (auth.uid() = user_id);
-
+-- The policies themselves are further down, after is_school_account() exists.
 -- No policy is granted to the `anon` role anywhere in this file. An
 -- unauthenticated caller with the anon key can therefore read nothing.
 
@@ -144,20 +128,75 @@ create index if not exists quiz_attempts_user_cls_ts on public.quiz_attempts (us
 alter table public.quiz_attempts enable row level security;
 alter table public.quiz_attempts force row level security;
 
+-- ============================================================================
+-- WHO IS ALLOWED IN
+--
+-- Teachers sign in with their school Google account. Google will happily
+-- authenticate any account it knows, so being signed in is not by itself a
+-- reason to be let in — this is where that line is drawn, and it is drawn in
+-- the database because a browser can be argued with and Postgres cannot.
+--
+-- Compared on the exact domain rather than with a wildcard: "%@gisu.ac.ug"
+-- would also match someone@notgisu.ac.ug.
+--
+-- To change schools, edit the domain here AND in supabase-config.js. If the two
+-- disagree the app lets someone in that the database then ignores, and they see
+-- an empty screen with no explanation.
+-- ============================================================================
+
+create or replace function public.is_school_account()
+returns boolean
+language sql
+stable
+as $$
+  select split_part(lower(coalesce(auth.jwt() ->> 'email', '')), '@', 2) = 'gisu.ac.ug'
+$$;
+
+comment on function public.is_school_account is
+  'True when the signed-in account belongs to the school domain. Guards every policy.';
+
+-- quiz_state -----------------------------------------------------------------
+drop policy if exists "read own state"   on public.quiz_state;
+drop policy if exists "insert own state" on public.quiz_state;
+drop policy if exists "update own state" on public.quiz_state;
+drop policy if exists "delete own state" on public.quiz_state;
+
+create policy "read own state" on public.quiz_state
+  for select to authenticated
+  using (auth.uid() = user_id and public.is_school_account());
+
+create policy "insert own state" on public.quiz_state
+  for insert to authenticated
+  with check (auth.uid() = user_id and public.is_school_account());
+
+create policy "update own state" on public.quiz_state
+  for update to authenticated
+  using (auth.uid() = user_id and public.is_school_account())
+  with check (auth.uid() = user_id and public.is_school_account());
+
+create policy "delete own state" on public.quiz_state
+  for delete to authenticated
+  using (auth.uid() = user_id and public.is_school_account());
+
+-- quiz_attempts --------------------------------------------------------------
 drop policy if exists "read own attempts"   on public.quiz_attempts;
 drop policy if exists "insert own attempts" on public.quiz_attempts;
 drop policy if exists "update own attempts" on public.quiz_attempts;
 drop policy if exists "delete own attempts" on public.quiz_attempts;
 
 create policy "read own attempts" on public.quiz_attempts
-  for select to authenticated using (auth.uid() = user_id);
+  for select to authenticated
+  using (auth.uid() = user_id and public.is_school_account());
 
 create policy "insert own attempts" on public.quiz_attempts
-  for insert to authenticated with check (auth.uid() = user_id);
+  for insert to authenticated
+  with check (auth.uid() = user_id and public.is_school_account());
 
 create policy "update own attempts" on public.quiz_attempts
-  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated
+  using (auth.uid() = user_id and public.is_school_account())
+  with check (auth.uid() = user_id and public.is_school_account());
 
--- Needed by "clear report history", which removes a class's answers for a period.
 create policy "delete own attempts" on public.quiz_attempts
-  for delete to authenticated using (auth.uid() = user_id);
+  for delete to authenticated
+  using (auth.uid() = user_id and public.is_school_account());

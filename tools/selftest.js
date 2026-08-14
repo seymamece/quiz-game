@@ -229,6 +229,55 @@ test('checking the cloud does not download the whole payload', () => {
     || 'the payload is fetched before the decision, so it downloads even when nothing changed';
 });
 
+test('only school accounts are let in, checked on the exact domain', () => {
+  const syncSrc = fs.readFileSync(path.join(__dirname, '..', 'sync.js'), 'utf8');
+  const m = syncSrc.match(/function isSchoolAccount[\s\S]*?\n  \}/);
+  if (!m) return 'the domain check is gone from the client';
+  const { isSchoolAccount } = new Function('root',
+    'const String_=String;' + m[0] +
+    '\nfunction schoolDomain(){return String(root.SCHOOL_EMAIL_DOMAIN||"").toLowerCase();}' +
+    '\nreturn {isSchoolAccount};')({ SCHOOL_EMAIL_DOMAIN: 'gisu.ac.ug' });
+
+  const allow = ['a.teacher@gisu.ac.ug', 'A.Teacher@GISU.AC.UG'];
+  const deny = [
+    'someone@notgisu.ac.ug',       // the wildcard trap: "%@gisu.ac.ug" matches this
+    'someone@gisu.ac.ug.evil.com',
+    'teacher@gmail.com',
+    'teacher@gisu.ac.ugx',
+    'no-at-sign', ''
+  ];
+  const wrong = allow.filter(e => isSchoolAccount(e) !== true).map(e => 'refused ' + e)
+    .concat(deny.filter(e => isSchoolAccount(e) !== false).map(e => 'admitted ' + e));
+  return wrong.length === 0 || wrong.join('; ');
+});
+
+test('the database enforces the domain too, on every policy', () => {
+  // The client check only explains the refusal. This is the one that holds:
+  // a signed-in Google account from anywhere gets nothing without it.
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'schema.sql'), 'utf8');
+  if (!/create or replace function public\.is_school_account/.test(sql)) {
+    return 'is_school_account() is gone — any Google account would have full access';
+  }
+  if (/like\s+'%@/.test(sql)) return 'a wildcard domain match is back: it also matches notgisu.ac.ug';
+  const policies = [...sql.matchAll(/create policy "([^"]+)" on public\.(quiz_state|quiz_attempts)[\s\S]*?;/g)];
+  if (policies.length < 8) return 'expected eight policies, found ' + policies.length;
+  const unguarded = policies.filter(p => !/is_school_account\(\)/.test(p[0])).map(p => p[1]);
+  return unguarded.length === 0 || 'these let any account through: ' + unguarded.join(', ');
+});
+
+test('the app and the database agree on the domain', () => {
+  const conf = fs.readFileSync(path.join(__dirname, '..', 'supabase-config.js'), 'utf8');
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'schema.sql'), 'utf8');
+  const inApp = (conf.match(/SCHOOL_EMAIL_DOMAIN\s*=\s*'([^']*)'/) || [])[1];
+  // the expression nests parentheses, so match on the tail rather than the call
+  const inDb = (sql.match(/split_part\([\s\S]*?,\s*2\)\s*=\s*'([^']*)'/) || [])[1];
+  if (!inApp) return 'no SCHOOL_EMAIL_DOMAIN in supabase-config.js';
+  if (!inDb) return 'no domain in is_school_account()';
+  return inApp === inDb
+    || `the app allows @${inApp} but the database allows @${inDb}. Someone would sign in ` +
+       'successfully and then find every screen empty, with nothing explaining why.';
+});
+
 test('clearing report history also clears it in the cloud', () => {
   // Answers are rows in their own table now. Deleting them only on this device
   // means the next sync pulls them straight back, and the teacher watches

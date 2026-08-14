@@ -6,6 +6,12 @@ terminal, and the app keeps working without any of it — sync is an addition to
 
 ## What ends up on the server
 
+Only `@gisu.ac.ug` accounts get in. That rule lives in the database, in
+`is_school_account()`, and every policy checks it — so it holds no matter what
+any browser claims. `supabase-config.js` carries the same domain, purely so the
+app can explain the refusal rather than showing an empty screen. **Change one
+and you must change the other.**
+
 | Stored readable | Stored encrypted | Never stored |
 |---|---|---|
 | Class names (`7-A`), grades | Student names | Your passphrase |
@@ -56,7 +62,39 @@ what stops one teacher from reading another's data.
 If the badge says RLS is disabled, stop and re-run `schema.sql` — do not put
 real student data in until it is on.
 
-### 4. Turn on email sign-in
+### 4. Turn on Google sign-in
+
+Teachers use the school Google account they already have, so there is no
+password for them to forget and none for you to send.
+
+**In Google Cloud Console** (console.cloud.google.com), signed in as the school:
+
+1. Create a project, or open an existing one.
+2. **APIs & Services → OAuth consent screen**: choose **Internal** if the school
+   has Google Workspace. Internal means only `@gisu.ac.ug` accounts can even
+   reach the consent screen, which is a second lock on top of the one in the
+   database.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**,
+   type **Web application**.
+4. Under **Authorised redirect URIs** add exactly:
+   `https://oacqveknfmdhsijocujk.supabase.co/auth/v1/callback`
+5. Copy the **Client ID** and **Client secret**.
+
+**In Supabase → Authentication → Providers → Google**: enable it, paste both
+values, save.
+
+**Also turn sign-ups back on** (Authentication → Sign In / Providers → *Allow
+new users to sign up*). Google sign-in cannot create an account with it off, and
+it is safe now: `is_school_account()` guards every policy, so an account from
+outside the school can sign in and still read and write nothing.
+
+### 5. Old password accounts
+
+The password box is still there, folded away under *Sign in with a password
+instead*, so accounts made before this keep working. Once everyone is on Google,
+delete those users in **Authentication → Users** and the box stops mattering.
+
+### 6. Turn on email sign-in
 
 1. **Authentication → Providers → Email**: enabled.
 2. Turn **Confirm email** on.

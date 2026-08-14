@@ -261,6 +261,31 @@
 
   function currentUser() { const s = loadSession(); return s && s.user; }
 
+  /* ---------- who is allowed in ----------
+     Compared on the exact domain, not with a wildcard: "%@gisu.ac.ug" would
+     also match someone@notgisu.ac.ug. The database applies the same rule to
+     every policy; this copy exists only so the app can say why it refused
+     rather than showing an empty screen. */
+  function schoolDomain() { return String(root.SCHOOL_EMAIL_DOMAIN || '').toLowerCase(); }
+
+  function isSchoolAccount(email) {
+    const want = schoolDomain();
+    if (!want) return true;                      // no domain configured: no restriction
+    const parts = String(email || '').toLowerCase().split('@');
+    return parts.length === 2 && parts[1] === want;
+  }
+
+  /* Sends the teacher to Google and back. Supabase returns them with the tokens
+     in the fragment, which consumeAuthRedirect already knows how to finish, so
+     signing in this way needs no password and no email — which also means no
+     hourly mail limit on a training day. */
+  function signInWithGoogle() {
+    const { url } = cfg();
+    if (!url) throw new Error('Cloud sync is not configured');
+    const back = root.location.origin + root.location.pathname;
+    root.location.href = url + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(back);
+  }
+
   /* ---------- coming back from a confirmation link ----------
      Supabase sends the teacher back to the app with the result in the URL
      fragment: tokens on success, an error description when the link has
@@ -423,7 +448,7 @@
                 encryptState, decryptState, MARK, PBKDF2_ROUNDS,
                 decideSync, configured, signUp, signIn, signOut, currentUser, validSession,
                 fetchRemoteMeta, fetchRemotePayload, pushRemote, SESSION_KEY,
-                parseAuthHash, consumeAuthRedirect,
+                parseAuthHash, consumeAuthRedirect, signInWithGoogle, isSchoolAccount, schoolDomain,
                 pushAttempts, fetchAttempts, deleteAttempts, attemptToRow, rowToAttempt };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
