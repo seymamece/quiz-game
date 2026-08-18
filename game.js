@@ -497,22 +497,39 @@ function renderStudents(){
   document.getElementById('stuTitle').textContent=`${c.name} · Students`;
   const present=presentIds(c).length;
   document.getElementById('attnLine').innerHTML = c.students.length
-    ? `Present today: <b>${present}</b> / ${c.students.length}. Tap a name to mark it absent — absent students are skipped in the quiz.` : '';
+    ? `Present today: <b>${present}</b> / ${c.students.length}. Tap a name to mark it absent — tap again to bring them back. Absent students are skipped in the quiz.<br><small>Use × only to remove someone for good; re-adding the name starts their points and history over.</small>` : '';
   const el=document.getElementById('stuList');
   el.innerHTML=c.students.length?'':'<p class="hint">No students yet. Add some above 👆</p>';
+  const cid=c.id;                  // looked up fresh in handlers, in case the class changes
   c.students.forEach(s=>{
     const absent=c.absent.includes(s.id);
     const ch=document.createElement('div');
     ch.className='chip'+(c.picked.includes(s.id)?' done':'')+(absent?' absent':'');
     const nm=document.createElement('span');
     nm.textContent=s.name; nm.style.cursor='pointer';
-    nm.title=absent?'Tap to mark present':'Tap to mark absent';
-    nm.onclick=()=>{
-      if(absent) c.absent=c.absent.filter(x=>x!==s.id); else c.absent.push(s.id);
+    nm.title=absent?'Tap to mark present again':'Tap to mark absent';
+    /* Marking someone absent is one tap and easy to do by mistake in a busy
+       room. Tapping again undoes it, but a struck-through greyed-out chip reads
+       as gone rather than reversible, and a teacher in a hurry reaches for the
+       × instead — which really does remove them, and re-adding the name mints a
+       new id that leaves their points and report history behind. So say so. */
+    const setAbsent=(on)=>{
+      const cc=S.classes[cid]; if(!cc) return;
+      cc.absent = on ? cc.absent.concat([s.id]) : cc.absent.filter(x=>x!==s.id);
       save(); renderStudents();
     };
+    nm.onclick=()=>{
+      setAbsent(!absent);
+      if(!absent) showToast(s.name+' marked absent','↩ Undo',()=>setAbsent(false),6000);
+    };
     ch.appendChild(nm);
-    if(absent){ const tg=document.createElement('span'); tg.className='absentTag'; tg.textContent='absent'; ch.appendChild(tg); }
+    if(absent){
+      const tg=document.createElement('span'); tg.className='absentTag';
+      tg.textContent='absent ↩'; tg.title='Tap to mark present again';
+      tg.style.cursor='pointer';
+      tg.onclick=ev=>{ ev.stopPropagation(); setAbsent(false); };
+      ch.appendChild(tg);
+    }
     const e=document.createElement('button'); e.textContent='✏️'; e.title='Edit name'; e.className='edit';
     e.onclick=async ()=>{
       const nn=await uiPrompt('Edit student name:',s.name);
