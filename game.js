@@ -2264,8 +2264,11 @@ async function handleAuthRedirect(){
       +'.\n\nYour work will now be saved to the cloud on its own.');
     doSync({auto:true});
   } else {
-    uiAlert('That link did not work.\n'+r.message
-      +'\n\nLinks expire after a while. Sign in below with your email and password instead.');
+    /* Everything that fails on the way back from Google or an email link lands
+       here — an expired link, but also a refused sign-up or a misconfigured
+       provider. Saying "links expire" for all of them sends the teacher looking
+       in the wrong place, so let the shared translator name the real cause. */
+    uiAlert(signInProblem(r.message||''));
   }
 }
 
@@ -2303,7 +2306,15 @@ function signInProblem(msg){
   if(m.indexOf('rate limit')>=0)
     return 'Too many emails for now.\nThe free email service allows only a few messages per hour, and that limit has been reached.\n\nWait an hour and try again, or ask whoever set this up to create your account from the Supabase dashboard — that needs no email at all.';
   if(m.indexOf('signup')>=0&&m.indexOf('not allowed')>=0 || m.indexOf('signup_disabled')>=0)
-    return 'New accounts are not open here.\nAsk whoever set up the school\'s cloud sync to create one for you, then sign in with it.';
+    return 'This account has not been used here before, and new accounts are currently closed.\n\n'
+      +'Whoever set up the school\'s cloud sync needs to switch on "Allow new users to sign up" in Supabase. '
+      +'After that, sign in with Google again — nothing else changes.';
+  if(m.indexOf('expired')>=0||m.indexOf('otp_expired')>=0||m.indexOf('invalid or has expired')>=0)
+    return 'That link has expired.\nAsk for a new one, or sign in with Google instead.';
+  if(m.indexOf('provider is not enabled')>=0||m.indexOf('unsupported provider')>=0)
+    return 'Google sign-in is not switched on for this project yet.\nWhoever set up the cloud sync needs to enable it in Supabase under Authentication → Providers.';
+  if(m.indexOf('redirect')>=0)
+    return 'The sign-in came back to an address this project does not recognise.\nThe app\'s address needs adding under Authentication → URL Configuration in Supabase.';
   if(m.indexOf('already registered')>=0||m.indexOf('already been registered')>=0)
     return 'That email already has an account.\nUse your password to sign in — no need to create it again.';
   if(m.indexOf('invalid login')>=0||m.indexOf('invalid credentials')>=0)

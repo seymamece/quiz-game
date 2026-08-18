@@ -494,7 +494,11 @@ test('sign-in errors are translated into something a teacher can act on', () => 
   const fn = new Function(m[0] + '; return signInProblem;')();
   const cases = [
     ['email rate limit exceeded', /only a few messages per hour/i],
-    ['Signups not allowed for this instance', /not open here/i],
+    // everything that fails on the way back from Google lands in one branch;
+    // calling all of it "the link expired" sends people looking in the wrong place
+    ['Signups not allowed for this instance', /Allow new users to sign up/i],
+    ['Email link is invalid or has expired', /link has expired/i],
+    ['Provider is not enabled', /not switched on/i],
     ['User already registered', /already has an account/i],
     ['Invalid login credentials', /do not match an account/i],
     ['Email not confirmed', /needs confirming/i],
