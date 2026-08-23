@@ -2224,6 +2224,16 @@ function renderCloud(){
   el.textContent='';
   const add=html=>{ const d=document.createElement('div'); d.innerHTML=html; el.appendChild(d); return d; };
 
+  /* Only there when the browser says it can install — no dead button on a
+     device that cannot, and it disappears once installed. */
+  if(installPrompt){
+    const box=add('<div class="row" style="margin-bottom:12px">'
+      + '<button class="btn" id="doInstall">⬇ Install this app</button></div>'
+      + '<p class="hint" style="margin:-6px 0 12px">Adds it to your Start menu or home screen, '
+      + 'opens in its own window, and keeps working when the wifi drops.</p>');
+    box.querySelector('#doInstall').onclick=doInstall;
+  }
+
   if(!QuizSync.configured()){
     add('<p class="hint">Not set up yet. Cloud sync is optional — everything else works without it.'
       + ' To turn it on, follow <b>supabase/README.md</b> and fill in <b>supabase-config.js</b>.</p>');
@@ -2475,6 +2485,37 @@ async function doSync(opts){
 }
 
 
+/* ================== INSTALLABLE APP ==================
+   Registering the service worker is what makes the browser offer "Install" and
+   what gives real offline, rather than relying on the HTTP cache happening to
+   still hold the files. It only works over https, so opening index.html
+   straight from a folder simply skips it — the app is unaffected either way. */
+function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return;
+  if(location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1') return;
+  navigator.serviceWorker.register('sw.js').catch(()=>{});   // never block the app on this
+}
+
+/* Chrome fires this instead of showing its own prompt, so the offer has to be
+   made somewhere the teacher will see it. The Backup tab is where the cloud
+   card already lives, which is the same conversation. */
+let installPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); installPrompt=e;
+  if(typeof renderCloud==='function') renderCloud();
+});
+window.addEventListener('appinstalled',()=>{
+  installPrompt=null;
+  if(typeof renderCloud==='function') renderCloud();
+  showToast('Installed ✔ You can open it from your Start menu or home screen now.');
+});
+async function doInstall(){
+  if(!installPrompt) return;
+  const p=installPrompt; installPrompt=null;
+  try{ await p.prompt(); }catch(e){}
+  renderCloud();
+}
+
 /* ================== INIT ================== */
 /* The school logo is optional. If assets/gisu-logo.png is missing we hide the
    img instead of leaving a broken-image icon next to the title. Checked three
@@ -2509,6 +2550,7 @@ document.getElementById('soundBtn').onclick=function(){
   document.getElementById('soundBtn').textContent=S.sound?'🔊':'🔇';
   initQuizSettings();
   wireQuestionPictures();          // once only: it attaches a document-level paste listener
+  registerServiceWorker();
   renderClasses(); renderBank(); renderSelectors(); showIdle();
   renderCloud();
   handleAuthRedirect();

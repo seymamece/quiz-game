@@ -22,6 +22,8 @@ Three plain files of our own code, no build step, no package manager, nothing to
 | `game.js` | All behaviour: data model, quiz flow, reports, sounds, pictures, cloud-sync UI. |
 | `sync.js` | Cloud sync: name encryption, the push/pull rule, Supabase transport. No DOM. |
 | `supabase-config.js` | Project URL + anon key. Empty by default; sync stays off until filled. |
+| `sw.js` | Service worker: offline shell, installability. `VERSION` must equal the `?v=` stamp. |
+| `manifest.json` | Name, icons and colours for the installed app. |
 
 `index.html` must be opened directly (`file://` works) or served from a folder that also
 contains `style.css`, `game.js`, `assets/` and `vendor/`. Keep it that way — no bundler.
@@ -123,10 +125,14 @@ Add a case to it whenever you touch those. It is not a full suite — everything
 needs a browser: open `index.html` and exercise the flow. Two gotchas learned the hard way:
 
 - **After editing `style.css`, `sync.js`, `supabase-config.js` or `game.js`, update the
-  `?v=` stamps in `index.html`.** GitHub Pages serves everything with `max-age=600` and the
+  `?v=` stamps in `index.html` AND `VERSION` in `sw.js`** — they are the same value. GitHub Pages serves everything with `max-age=600` and the
   edge caches age independently, so without it a teacher can get a fresh `index.html` beside
   a stale `game.js` — the new markup renders and none of its handlers exist, which looks
   exactly like a broken feature. `node tools/selftest.js` fails with the value to paste in.
+- **The service worker is the fastest way to strand everyone on an old build.** Navigation
+  is network-first on purpose: `index.html` names the current stamps, so serving it from
+  cache would mean a deploy never arrives. Supabase is excluded from caching entirely — a
+  cached sync response would look live and be stale.
 - Browser caching will still serve a stale file locally and make a correct fix look broken.
   Hard-reload, or serve over `python -m http.server` with a cache-busting query.
 - Import the demo bank (`demo/demo-question-banks.json`) from the Question Banks tab to get

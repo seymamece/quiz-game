@@ -31,6 +31,20 @@ A classroom quiz game for **Galaxy International School Uganda**. No installatio
 
 **Sounds** — a carnival tune while names spin, a tick-tock countdown, applause + fanfare for correct, a donk-zonk buzzer for wrong. All synthesized from scratch (no copyright worries) and embedded in `game.js`. Want your own sounds? See [`tools/`](tools/).
 
+## Install it like an app
+
+The hosted page can be installed, so it lives in the Start menu or on a home
+screen instead of a bookmark:
+
+- **Windows / Mac:** open it in Chrome or Edge and use the install icon in the
+  address bar, or the ⬇ button on the *Sign in & Backup* tab.
+- **Android:** Chrome menu → *Add to Home screen*.
+- **iPhone / iPad:** Safari → Share → *Add to Home Screen*.
+
+Installed, it opens in its own window with no address bar, and keeps working
+when the wifi drops — the files are stored on the device rather than fetched
+each time.
+
 ## Getting started
 
 1. Download the whole folder (green **Code → Download ZIP** button, then unzip) — or use the hosted page if this repo has GitHub Pages enabled.
@@ -47,6 +61,8 @@ Demo content to try it immediately: import [`demo/demo-question-banks.json`](dem
 
 ```
 index.html      page structure — all the markup, links the scripts below
+manifest.json   name, icons and colours used when the app is installed
+sw.js           service worker: offline files, and what makes it installable
 style.css       all styling
 game.js         all behaviour: data model, quiz logic, reports, sounds
 sync.js         optional cloud sync + the encryption that protects student names

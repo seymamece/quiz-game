@@ -8,6 +8,13 @@
      one — the 16px version drops the card and the letter, which turn to mush at
      that size, and keeps just the green tile. The 180px one is what a tablet
      uses if a teacher adds the app to their home screen. -->
+<!-- Installable: Chrome and Edge offer "Install", Android and iOS "Add to Home
+     Screen". The icons below double as the app icon once installed. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#25984d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Quiz Game">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon-180.png?v=2">
@@ -16,7 +23,7 @@
      student name and score, so it must not be replaceable by a third party.
      See vendor/README.md for the version and how to update it. -->
 <script src="vendor/confetti.browser.js"></script>
-<link rel="stylesheet" href="style.css?v=95250467">
+<link rel="stylesheet" href="style.css?v=6ab8dc9e">
 </head>
 <body>
 <div class="frame">
@@ -297,8 +304,8 @@
   </div>
 </div>
 
-<script src="supabase-config.js?v=95250467"></script>
-<script src="sync.js?v=95250467"></script>
-<script src="game.js?v=95250467"></script>
+<script src="supabase-config.js?v=6ab8dc9e"></script>
+<script src="sync.js?v=6ab8dc9e"></script>
+<script src="game.js?v=6ab8dc9e"></script>
 </body>
 </html>

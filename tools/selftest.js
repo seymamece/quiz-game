@@ -361,6 +361,66 @@ test('the tab icon is declared and the files are there', () => {
   return missing.length === 0 || 'declared but not in the repo: ' + missing.join(', ');
 });
 
+/* ---------- installable app ----------
+   A service worker is the fastest way to strand every teacher on an old
+   version, which is exactly the failure this project has already had once. */
+
+const swSrc = fs.existsSync(path.join(__dirname, '..', 'sw.js'))
+  ? fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8') : '';
+
+test('the service worker version matches the asset stamp', () => {
+  if (!swSrc) return 'sw.js is gone — the app is no longer installable or offline';
+  const inSw = (swSrc.match(/const VERSION = '([0-9a-f]+)'/) || [])[1];
+  const want = assetVersion();
+  return inSw === want
+    || `sw.js says ${inSw} but the files hash to ${want}. Update VERSION in sw.js, or the ` +
+       'cached shell keeps serving the previous release.';
+});
+
+test('the service worker never caches Supabase', () => {
+  if (!swSrc) return 'sw.js is gone';
+  // Checking the word appears somewhere is not enough — a comment would satisfy
+  // that. The fetch handler has to actually bail out before it touches a cache.
+  const fetchStart = swSrc.indexOf("addEventListener('fetch'");
+  if (fetchStart < 0) return 'no fetch handler at all';
+  const handler = swSrc.slice(fetchStart);
+  const firstCache = handler.indexOf('caches.');
+  const head = firstCache < 0 ? handler : handler.slice(0, firstCache);
+  if (!/supabase/i.test(head)) {
+    return 'nothing excludes the API before the cache is consulted. A cached sync response ' +
+      'would hand back stale data as if it were live, and a teacher would never know.';
+  }
+  return /return;/.test(head)
+    || 'the API is recognised but not skipped — it needs an early return, not just a check';
+});
+
+test('the page itself is fetched network-first', () => {
+  if (!swSrc) return 'sw.js is gone';
+  const nav = swSrc.slice(swSrc.indexOf("req.mode === 'navigate'"));
+  if (!nav) return 'navigation requests are not handled separately';
+  const beforeCache = nav.slice(0, nav.indexOf('caches.match'));
+  return /await fetch\(req\)/.test(beforeCache)
+    || 'index.html is served from cache first. It is what names the current ?v= stamps, so ' +
+       'cached-first means a new deploy can never arrive.';
+});
+
+test('the manifest is linked and its icons exist', () => {
+  if (!/<link[^>]*rel="manifest"/.test(indexHtml)) return 'no manifest link — nothing offers to install';
+  const p = path.join(__dirname, '..', 'manifest.json');
+  if (!fs.existsSync(p)) return 'manifest.json is referenced but missing';
+  let man;
+  try { man = JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) { return 'manifest.json is not valid JSON'; }
+  for (const k of ['name', 'start_url', 'display', 'icons']) {
+    if (!man[k]) return 'manifest.json has no ' + k;
+  }
+  const missing = (man.icons || []).map(i => i.src)
+    .filter(s => !fs.existsSync(path.join(__dirname, '..', s)));
+  if (missing.length) return 'icons declared but not in the repo: ' + missing.join(', ');
+  const sizes = (man.icons || []).map(i => i.sizes);
+  return (sizes.includes('192x192') && sizes.includes('512x512'))
+    || 'Android wants a 192 and a 512; got ' + sizes.join(', ');
+});
+
 /* ---------- pictures attached to questions ----------
    A picture can arrive inside an imported bank, so its value is as untrusted
    as the question text around it. */
