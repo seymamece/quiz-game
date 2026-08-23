@@ -465,6 +465,30 @@ test('a question picture is actually rendered where it is needed', () => {
   return missing.length === 0 || 'pictures would not show on: ' + missing.join('; ');
 });
 
+test('searching questions cannot delete what it hides', () => {
+  // Bulk delete works off qSel. If a filter could narrow the list while a
+  // selection stood, "Delete selected" would remove questions the teacher can
+  // no longer see — the one genuinely dangerous mistake in this screen.
+  const rq = src.match(/^function renderQuestions[\s\S]*?\n\}/m);
+  if (!rq) return 'renderQuestions is gone';
+  if (!/qFind/.test(rq[0])) return 'the search is gone';
+  const onInput = rq[0].slice(rq[0].indexOf('box.oninput'));
+  if (!/qSel\.clear\(\)/.test(onInput.slice(0, 200))) {
+    return 'typing in the search no longer clears the selection, so a bulk delete could ' +
+      'remove hidden questions';
+  }
+  // and moving to another topic or level must reset it too, or the list looks empty
+  return /scope!==qFindScope/.test(rq[0])
+    || 'the search is not reset when the topic or level changes, so the next one opens filtered';
+});
+
+test('bulk select applies to what is on screen', () => {
+  const bar = src.match(/^function renderSelBar[\s\S]*?\n\}/m);
+  if (!bar) return 'renderSelBar is gone';
+  return /visible\.forEach/.test(bar[0])
+    || 'select-all still reaches past the filter into the whole level';
+});
+
 test('a v6 backup is not run through the pre-v6 migration', () => {
   const m = src.match(/if\(!data\.schemaVersion \|\| data\.schemaVersion<(\w+)\)/);
   if (!m) return 'the backup import version check is gone';

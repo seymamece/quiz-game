@@ -1063,6 +1063,7 @@ function wireQuestionPictures(){
 
 /* ================== QUESTIONS ================== */
 let qLvl='easy', editId=null, qSel=new Set();
+let qFind='', qFindScope='';     // search text, and which topic+level it belongs to
 document.querySelectorAll('#qTabs button').forEach(b=>{
   b.onclick=()=>{
     document.querySelectorAll('#qTabs button').forEach(x=>x.classList.remove('active'));
@@ -1126,13 +1127,41 @@ function renderQuestions(){
   card.style.display='block';
   document.getElementById('qTitle').textContent=`${sub().name} · Grade ${S.edGrade} · ${t.name}`;
   const el=document.getElementById('qList');
-  const list=t.questions[qLvl];
-  el.innerHTML=list.length?'':'<p class="hint" style="margin-top:10px">No questions at this level yet.</p>';
-  list.forEach((it,i)=>{
+  const all=t.questions[qLvl];
+
+  /* The search belongs to the topic and level it was typed in. Carrying it to
+     the next one would show an empty list for no visible reason, so it resets
+     — and with it the selection, since deleting things you cannot see is the
+     one genuinely dangerous mistake here. */
+  const scope=t.id+'|'+qLvl;
+  if(scope!==qFindScope){ qFindScope=scope; qFind=''; qSel.clear(); }
+  const box=document.getElementById('qSearch');
+  if(box){
+    if(box.value!==qFind) box.value=qFind;
+    box.oninput=()=>{ qFind=box.value; qSel.clear(); renderQuestions(); box.focus(); };
+  }
+
+  const needle=qFind.trim().toLowerCase();
+  const list=needle
+    ? all.filter(q=>((q.q||'')+' '+(q.a||'')).toLowerCase().includes(needle))
+    : all;
+
+  const count=document.getElementById('qCount');
+  if(count){
+    count.textContent = !all.length ? ''
+      : needle ? `${list.length} of ${all.length}`
+      : `${all.length} question${all.length===1?'':'s'}`;
+  }
+
+  el.innerHTML = all.length
+    ? (list.length?'':'<p class="hint" style="margin-top:10px">Nothing matches that search.</p>')
+    : '<p class="hint" style="margin-top:10px">No questions at this level yet.</p>';
+  list.forEach(it=>{
+    const i=all.indexOf(it);        // keep the real number, so filtering does not renumber
     const d=document.createElement('div');
     d.className='qItem'+(editId===it.id?' editing':'');
     const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=qSel.has(it.id); cb.title='Select';
-    cb.onclick=ev=>{ ev.stopPropagation(); cb.checked?qSel.add(it.id):qSel.delete(it.id); renderSelBar(list.length); };
+    cb.onclick=ev=>{ ev.stopPropagation(); cb.checked?qSel.add(it.id):qSel.delete(it.id); renderSelBar(list); };
     d.appendChild(cb);
     if(it.img){
       const th=document.createElement('img'); th.className='qThumb'; th.src=safeImgUri(it.img);
@@ -1169,20 +1198,24 @@ function renderQuestions(){
     };
     btns.appendChild(e); btns.appendChild(x); d.appendChild(btns); el.appendChild(d);
   });
-  renderSelBar(list.length);
+  renderSelBar(list);
   renderTimerInputs();
 }
-function renderSelBar(total){
-  const el=document.getElementById('qList');
+/* `visible` is what the search is currently showing, not the whole level. Select
+   all therefore means "all of these", which is what a filtered list implies —
+   and it is why the search clears the selection when it changes. */
+function renderSelBar(visible){
+  const host=document.getElementById('qSelBarHost')||document.getElementById('qList');
   const old=document.getElementById('selBar'); if(old) old.remove();
+  const total=(visible||[]).length;
   if(!total) return;
   const t=edTopicObj(); if(!t) return;
   const bar=document.createElement('div'); bar.className='selBar'; bar.id='selBar';
   const n=qSel.size;
   bar.innerHTML=`<span class="count">${n?`${n} selected`:'Tick the boxes to delete several at once'}</span>`;
   const all=document.createElement('button'); all.className='btn ghost small';
-  all.textContent=(n===total)?'Clear selection':'Select all';
-  all.onclick=()=>{ if(n===total) qSel.clear(); else t.questions[qLvl].forEach(q=>qSel.add(q.id)); renderQuestions(); };
+  all.textContent=(n===total)?'Clear selection':(qFind.trim()?`Select these ${total}`:'Select all');
+  all.onclick=()=>{ if(n===total) qSel.clear(); else visible.forEach(q=>qSel.add(q.id)); renderQuestions(); };
   bar.appendChild(all);
   if(n){
     const del=document.createElement('button'); del.className='btn danger small';
@@ -1203,7 +1236,7 @@ function renderSelBar(total){
     };
     bar.appendChild(del);
   }
-  el.appendChild(bar);
+  host.appendChild(bar);          // outside the scrolling list, so it stays put
 }
 function renderTimerInputs(){
   LEVELS.forEach(l=>{

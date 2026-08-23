@@ -17,7 +17,7 @@
  * they drift, the same way it guards the stamps themselves.
  */
 
-const VERSION = '6ab8dc9e';
+const VERSION = 'c26de159';
 const CACHE = 'gisu-quiz-' + VERSION;
 
 /* The shell: enough to open the app with no connection at all. */

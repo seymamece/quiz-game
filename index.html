@@ -23,7 +23,7 @@
      student name and score, so it must not be replaceable by a third party.
      See vendor/README.md for the version and how to update it. -->
 <script src="vendor/confetti.browser.js"></script>
-<link rel="stylesheet" href="style.css?v=6ab8dc9e">
+<link rel="stylesheet" href="style.css?v=c26de159">
 </head>
 <body>
 <div class="frame">
@@ -182,7 +182,12 @@
         <button class="btn ghost" id="qBulk">📝 Bulk Add</button>
         <button class="btn ghost" id="qCancel" style="display:none">Cancel</button>
       </div>
+      <div class="row" style="margin-top:12px;align-items:center">
+        <input type="text" id="qSearch" placeholder="🔍 Search these questions…">
+        <span class="hint" id="qCount" style="margin:0;white-space:nowrap"></span>
+      </div>
       <div id="qList"></div>
+      <div id="qSelBarHost"></div>
     </div>
 
     <div class="card">
@@ -304,8 +309,8 @@
   </div>
 </div>
 
-<script src="supabase-config.js?v=6ab8dc9e"></script>
-<script src="sync.js?v=6ab8dc9e"></script>
-<script src="game.js?v=6ab8dc9e"></script>
+<script src="supabase-config.js?v=c26de159"></script>
+<script src="sync.js?v=c26de159"></script>
+<script src="game.js?v=c26de159"></script>
 </body>
 </html>

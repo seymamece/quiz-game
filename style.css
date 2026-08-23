@@ -124,6 +124,10 @@ input:focus,select:focus{border-color:var(--yellow-deep)}
 .qItem .qBtns button{background:none;border:none;font-size:1.05rem;cursor:pointer;padding:2px}
 .qItem input[type=checkbox]{width:19px;height:19px;min-width:19px;accent-color:var(--yellow-deep);cursor:pointer;margin-top:2px;flex:none}
 .qItem .qBody{flex:1;white-space:pre-line}
+/* A topic can hold a hundred questions. Cap the list so the page stops growing
+   and the buttons under it stay reachable; short lists simply do not scroll. */
+#qList{max-height:52vh;overflow-y:auto;overscroll-behavior:contain}
+#qList:not(:empty){padding-right:4px}
 .selBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:2px dashed var(--line)}
 .selBar .count{color:var(--dim);font-weight:800;font-size:.85rem;margin-right:auto}
 .btn.danger{background:var(--red)}
