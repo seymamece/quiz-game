@@ -22,6 +22,13 @@ Student names are encrypted in your browser before anything is sent. Supabase
 holds the ciphertext and never holds the key, so a database dump — or a leaked
 API key — does not reveal who your students are.
 
+You are asked for the passphrase the first time you sync on a computer, and
+offered the choice to remember it there. Say yes on your own laptop; say no on a
+shared classroom machine. Either way the server only ever holds unreadable text
+— remembering it decides whether someone using *that computer* could read the
+names, not whether Supabase can. Sign out and it is forgotten, and there is a
+**Forget passphrase here** button whenever you want it gone.
+
 **The passphrase cannot be recovered.** If you forget it, the names are gone and
 you re-enter them; the question bank, scores and everything else still open
 normally. Keep using **Backup → Export All Data** as well: that file is complete

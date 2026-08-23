@@ -97,6 +97,12 @@ domain by `is_school_account()` in `supabase/schema.sql`, which every policy che
 can explain a refusal. The two must agree — the self-test fails if they drift. Match on the
 exact domain, never `like '%@…'`, which also matches `notgisu.ac.ug`.
 
+The passphrase may be remembered per device, opt-in. It is kept in IndexedDB as a
+non-extractable `CryptoKey` — never as bytes in `localStorage` — so script on the page can
+use it but cannot copy it out, which matters given this app has had an XSS. A remembered
+key is always checked against the row's verifier before use, or a second teacher signing in
+on the same computer would silently get unreadable names instead of a prompt.
+
 Anything new that can hold a name must be encrypted or excluded, and given a case in the
 self-test. The `service_role` key must never appear in any file the browser can read — it
 ignores RLS; only the `anon` key belongs there.

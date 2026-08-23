@@ -2208,6 +2208,11 @@ function cloudBody(){ return document.getElementById('cloudBody'); }
    scores is exactly the step a busy teacher forgets. */
 
 let cloudBusy=false, unlockDeclined=false, syncProblem=null, autoTimer=null;
+let keyRemembered=false;           // shown in the card; refreshed asynchronously
+async function refreshRememberFlag(){
+  try{ keyRemembered=!!(await QuizSync.recallKey()); }catch(e){ keyRemembered=false; }
+  renderCloud();
+}
 /* Quiet period before an automatic push. This used to be 8 seconds, which
    sounded responsive and was badly wrong: answers in a lesson arrive further
    apart than that, so the timer expired between every single one and uploaded
@@ -2293,16 +2298,26 @@ function renderCloud(){
   }
 
   const st=cloudStatus();
-  const box=add('<p class="hint" style="color:'+st.colour+';margin:0"><b>'+esc(user.email||'')+'</b><br>'+esc(st.text)+'</p>'
+  const box=add('<p class="hint" style="color:'+st.colour+';margin:0"><b>'+esc(user.email||'')+'</b><br>'+esc(st.text)
+    + (keyRemembered?'<br><small>Passphrase remembered on this computer.</small>':'')+'</p>'
     + '<div class="row" style="margin-top:10px">'
     + '<button class="btn ghost small" id="cloudSync">🔄 Sync now</button>'
+    + (keyRemembered?'<button class="btn ghost small" id="cloudForget">Forget passphrase here</button>':'')
     + '<button class="btn ghost small" id="cloudOut">Sign out</button></div>');
   box.querySelector('#cloudSync').onclick=()=>doSync({manual:true});
+  const fg=box.querySelector('#cloudForget');
+  if(fg) fg.onclick=async ()=>{
+    if(!await uiConfirm('Forget the passphrase on this computer?\nYou will be asked for it again next time. Nothing in the cloud changes.')) return;
+    await QuizSync.forgetKey(); cloudKey=null;
+    await refreshRememberFlag();
+    showToast('Forgotten on this computer ✔');
+  };
   box.querySelector('#cloudOut').onclick=async ()=>{
     if(!await uiConfirm('Sign out of cloud sync?\nYour data stays on this computer.')) return;
     clearTimeout(autoTimer);
     await QuizSync.signOut();
-    cloudKey=null; cloudSalt=null; cloudVerifier=null; unlockDeclined=false; syncProblem=null;
+    await QuizSync.forgetKey();          // the next person here is not this teacher
+    cloudKey=null; cloudSalt=null; cloudVerifier=null; unlockDeclined=false; syncProblem=null; keyRemembered=false;
     renderCloud();
   };
 }
@@ -2393,6 +2408,22 @@ function signInProblem(msg){
    name into unreadable text. Asked once per browser session, never stored. */
 async function unlockKey(remote){
   if(cloudKey) return true;
+
+  /* A key kept only in memory means typing the passphrase on every open, which
+     in practice is every lesson. If the teacher asked this device to remember
+     it, use that — but check it against the verifier first, because a different
+     account may have signed in since. */
+  if(remote&&remote.exists&&remote.verifier){
+    try{
+      const saved=await QuizSync.recallKey();
+      if(saved&&await QuizSync.checkVerifier(saved,remote.verifier)){
+        cloudKey=saved; cloudSalt=remote.salt; cloudVerifier=remote.verifier;
+        return true;
+      }
+      if(saved) await QuizSync.forgetKey();     // belongs to someone else now
+    }catch(e){}
+  }
+
   const firstTime=!(remote&&remote.exists&&remote.salt&&remote.verifier);
   if(firstTime){
     const p1=await uiPassphrase('Choose a passphrase',
@@ -2404,6 +2435,7 @@ async function unlockKey(remote){
     const salt=QuizSync.newSalt();
     cloudKey=await QuizSync.deriveKey(p1,salt);
     cloudSalt=salt; cloudVerifier=await QuizSync.makeVerifier(cloudKey);
+    await offerToRemember();
     return true;
   }
   const p=await uiPassphrase('Your passphrase','Needed to read the student names stored in your account.','Unlock');
@@ -2414,9 +2446,23 @@ async function unlockKey(remote){
     return false;
   }
   cloudKey=key; cloudSalt=remote.salt; cloudVerifier=remote.verifier;
+  await offerToRemember();
   return true;
 }
 let cloudSalt=null, cloudVerifier=null;
+
+/* Asked once, right after the passphrase has been proved correct. Opt-in, and
+   phrased around the actual trade: the server never sees a readable name either
+   way — what changes is whether someone holding this computer could. */
+async function offerToRemember(){
+  if(!cloudKey) return;
+  try{ if(await QuizSync.recallKey()) return; }catch(e){ return; }
+  const yes=await uiConfirm('Remember this passphrase on this computer?\n\n'
+    +'You will not be asked again here. Your students\' names stay unreadable in the cloud '
+    +'either way — this only decides whether someone using this computer could see them.\n\n'
+    +'Say no on a shared classroom machine.');
+  if(yes===true){ await QuizSync.rememberKey(cloudKey); await refreshRememberFlag(); }
+}
 
 async function doSync(opts){
   opts=opts||{};
@@ -2585,7 +2631,7 @@ document.getElementById('soundBtn').onclick=function(){
   wireQuestionPictures();          // once only: it attaches a document-level paste listener
   registerServiceWorker();
   renderClasses(); renderBank(); renderSelectors(); showIdle();
-  renderCloud();
+  renderCloud(); refreshRememberFlag();
   handleAuthRedirect();
   /* Pick up anything the other computer sent, and send anything left over from
      last time. Silent when there is nothing to do, so opening the app offline

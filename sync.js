@@ -74,6 +74,40 @@
 
   const isEncrypted = v => typeof v === 'string' && v.indexOf(MARK) === 0;
 
+  /* ---------- remembering the key on this device ----------
+     Stored in IndexedDB rather than localStorage, and stored as the CryptoKey
+     itself rather than its bytes. The key is created non-extractable, so what
+     goes in cannot be read back out as raw material — script on the page can
+     use it, but cannot copy it out and send it somewhere. After an XSS in this
+     project once already, that difference is worth the extra few lines.
+
+     This is opt-in. Nothing is written unless the teacher asks for it. */
+
+  const KEY_DB = 'quiz-key', KEY_STORE = 'k', KEY_ID = 'passphrase-key';
+
+  function openKeyDb() {
+    return new Promise((res, rej) => {
+      if (!root.indexedDB) return rej(new Error('no IndexedDB'));
+      const r = root.indexedDB.open(KEY_DB, 1);
+      r.onupgradeneeded = () => { r.result.createObjectStore(KEY_STORE); };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error || new Error('IndexedDB refused'));
+    });
+  }
+
+  function keyDbOp(mode, fn) {
+    return openKeyDb().then(db => new Promise((res, rej) => {
+      const tx = db.transaction(KEY_STORE, mode);
+      const req = fn(tx.objectStore(KEY_STORE));
+      tx.oncomplete = () => { db.close(); res(req ? req.result : undefined); };
+      tx.onerror = () => { db.close(); rej(tx.error); };
+    }));
+  }
+
+  const rememberKey = key => keyDbOp('readwrite', s => s.put(key, KEY_ID)).then(() => true).catch(() => false);
+  const recallKey   = ()  => keyDbOp('readonly',  s => s.get(KEY_ID)).catch(() => null);
+  const forgetKey   = ()  => keyDbOp('readwrite', s => s.delete(KEY_ID)).then(() => true).catch(() => false);
+
   /* ---------- proving the passphrase is right ----------
      Without this, a typo would silently turn every name into garbage.
      The verifier is stored next to the salt; decrypting it is the check. */
@@ -449,6 +483,7 @@
                 decideSync, configured, signUp, signIn, signOut, currentUser, validSession,
                 fetchRemoteMeta, fetchRemotePayload, pushRemote, SESSION_KEY,
                 parseAuthHash, consumeAuthRedirect, signInWithGoogle, isSchoolAccount, schoolDomain,
+                rememberKey, recallKey, forgetKey,
                 pushAttempts, fetchAttempts, deleteAttempts, attemptToRow, rowToAttempt };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

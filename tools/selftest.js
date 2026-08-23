@@ -465,6 +465,35 @@ test('a question picture is actually rendered where it is needed', () => {
   return missing.length === 0 || 'pictures would not show on: ' + missing.join('; ');
 });
 
+test('a remembered passphrase is opt-in, checked, and dropped on sign-out', () => {
+  const syncSrc = fs.readFileSync(path.join(__dirname, '..', 'sync.js'), 'utf8');
+  // The key goes into IndexedDB as a CryptoKey, not into localStorage as bytes.
+  // It is created non-extractable, so a script can use it but not copy it out —
+  // which matters here, given this app has had an XSS.
+  if (!/indexedDB/i.test(syncSrc)) return 'the key store is gone';
+  if (/localStorage[\s\S]{0,80}cloudKey|setItem\([^)]*[Kk]ey[^)]*key/.test(syncSrc)) {
+    return 'raw key material looks like it is going into localStorage, where any script can read it';
+  }
+  const derive = syncSrc.match(/function deriveKey[\s\S]*?\n  \}/);
+  if (derive && /true,\s*\['encrypt'/.test(derive[0])) {
+    return 'the key is derived as extractable, so a script could copy it out of the browser';
+  }
+
+  const unlock = src.match(/^async function unlockKey[\s\S]*?\n\}/m);
+  if (!unlock) return 'unlockKey is gone';
+  if (!/checkVerifier\(saved/.test(unlock[0])) {
+    return 'a remembered key is used without checking it against the account — a different ' +
+      'teacher signing in here would get unreadable names instead of being asked';
+  }
+  const offer = src.match(/^async function offerToRemember[\s\S]*?\n\}/m);
+  if (!offer) return 'nothing offers to remember it';
+  if (!/uiConfirm/.test(offer[0])) return 'it is remembered without asking — this must stay opt-in';
+
+  const out = src.match(/cloudOut'\)\.onclick[\s\S]*?\n  \};/);
+  return (out && /forgetKey\(\)/.test(out[0]))
+    || 'signing out leaves the passphrase behind for whoever uses this computer next';
+});
+
 test('searching questions cannot delete what it hides', () => {
   // Bulk delete works off qSel. If a filter could narrow the list while a
   // selection stood, "Delete selected" would remove questions the teacher can
